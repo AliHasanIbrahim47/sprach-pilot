@@ -2,8 +2,39 @@
   "name": "@sprachpilot/config",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
+  "exports": {
+    "./tsconfig/*": "./tsconfig/*",
+    "./eslint/base": "./eslint/base.js",
+    "./eslint/node": "./eslint/node.js",
+    "./eslint/nextjs": "./eslint/nextjs.js",
+    "./eslint/root": "./eslint/root.js",
+    "./prettier": "./prettier/index.js"
+  },
   "files": [
     "tsconfig",
-    "eslint"
-  ]
+    "eslint",
+    "prettier"
+  ],
+  "scripts": {
+    "lint": "eslint .",
+    "type-check": "echo \"no type-check for config package\"",
+    "build": "echo \"no build for config package\"",
+    "test": "echo \"no tests yet\"",
+    "clean": "rm -rf .turbo"
+  },
+  "dependencies": {
+    "@eslint/js": "^9.36.0",
+    "@next/eslint-plugin-next": "^15.5.3",
+    "eslint": "^9.36.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-security": "^3.0.1",
+    "eslint-plugin-simple-import-sort": "^12.1.1",
+    "typescript-eslint": "^8.44.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
 }

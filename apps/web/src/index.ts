@@ -1,5 +1,4 @@
-import { createHealthStatus } from "@sprachpilot/shared";
-import type { HealthStatus } from "@sprachpilot/shared";
+import { createHealthStatus, type HealthStatus } from "@sprachpilot/shared";
 
 /**
  * Web skeleton placeholder. Next.js App Router arrives in SP-004.

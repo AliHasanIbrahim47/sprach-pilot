@@ -15,13 +15,14 @@
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
     "type-check": "tsc -p tsconfig.json --noEmit",
-    "lint": "echo \"lint: deferred to SP-002\"",
+    "lint": "eslint .",
     "test": "echo \"no tests yet\"",
     "clean": "rm -rf dist .turbo *.tsbuildinfo"
   },
   "devDependencies": {
     "@sprachpilot/config": "workspace:*",
-    "typescript": "^7.0.2",
-    "@types/node": "^24.5.2"
+    "@types/node": "^24.5.2",
+    "eslint": "^9.36.0",
+    "typescript": "^5.9.3"
   }
 }

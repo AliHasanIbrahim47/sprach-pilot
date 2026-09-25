@@ -1,5 +1,4 @@
-import { createHealthStatus } from "@sprachpilot/shared";
-import type { HealthStatus } from "@sprachpilot/shared";
+import { createHealthStatus, type HealthStatus } from "@sprachpilot/shared";
 
 /**
  * API skeleton placeholder. Express layered architecture arrives in SP-003.
