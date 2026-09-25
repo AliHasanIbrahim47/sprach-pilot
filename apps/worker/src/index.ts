@@ -1,5 +1,4 @@
-import { createHealthStatus } from "@sprachpilot/shared";
-import type { HealthStatus } from "@sprachpilot/shared";
+import { createHealthStatus, type HealthStatus } from "@sprachpilot/shared";
 
 /**
  * Background worker placeholder. Job processing arrives with later tickets.

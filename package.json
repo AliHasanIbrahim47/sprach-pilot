@@ -1,18 +1,39 @@
 {
   "name": "sprachpilot",
   "private": true,
+  "type": "module",
   "packageManager": "pnpm@12.6.0",
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev --ui=stream --filter=@sprachpilot/web --filter=@sprachpilot/api --filter=@sprachpilot/worker",
     "lint": "turbo run lint",
     "test": "turbo run test",
+    "typecheck": "turbo run type-check",
     "type-check": "turbo run type-check",
-    "clean": "turbo run clean && rm -rf node_modules"
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{js,jsx,mjs,cjs,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml,css,scss,html}": [
+      "prettier --write"
+    ]
   },
   "devDependencies": {
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
+    "@sprachpilot/config": "workspace:*",
     "@types/node": "^24.5.2",
+    "eslint": "^9.36.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.6",
+    "prettier": "^3.6.2",
     "turbo": "2.11.2",
-    "typescript": "^7.0.2"
+    "typescript": "^5.9.3"
   }
 }

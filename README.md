@@ -11,14 +11,17 @@ pnpm build
 pnpm dev
 ```
 
-| Command | What it does |
-|---|---|
-| `pnpm install` | Installs all workspace dependencies |
-| `pnpm build` | Builds apps and packages in topological order (Turborepo) |
-| `pnpm dev` | Starts `web`, `api` and `worker` in parallel watch mode |
-| `pnpm type-check` | Type-checks every workspace |
-| `pnpm lint` | Runs lint in every workspace (rules land in SP-002) |
-| `pnpm test` | Runs tests in every workspace |
+| Command                             | What it does                                              |
+| ----------------------------------- | --------------------------------------------------------- |
+| `pnpm install`                      | Installs all workspace dependencies                       |
+| `pnpm build`                        | Builds apps and packages in topological order (Turborepo) |
+| `pnpm dev`                          | Starts `web`, `api` and `worker` in parallel watch mode   |
+| `pnpm typecheck`                    | Type-checks every workspace (`tsc --noEmit`)              |
+| `pnpm lint`                         | Runs ESLint in every workspace                            |
+| `pnpm format` / `pnpm format:check` | Format / check with Prettier                              |
+| `pnpm test`                         | Runs tests in every workspace                             |
+
+Commit messages use [Conventional Commits](https://www.conventionalcommits.org/) with optional scopes: `api`, `web`, `worker`, `db`, `infra`, `docs`, `shared`, `config`, `repo`. Husky runs lint-staged on pre-commit and commitlint on commit-msg.
 
 ## Repository layout
 
@@ -48,8 +51,3 @@ Apps and packages depend on each other with the `workspace:*` protocol, for exam
   }
 }
 ```
-
-## Documentation
-
-- [Backlog and roadmap](docs/backlog/README.md)
-- [Glossary](docs/backlog/GLOSSARY.md)
