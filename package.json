@@ -1,0 +1,18 @@
+{
+  "name": "sprachpilot",
+  "private": true,
+  "packageManager": "pnpm@12.6.0",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev --ui=stream --filter=@sprachpilot/web --filter=@sprachpilot/api --filter=@sprachpilot/worker",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "type-check": "turbo run type-check",
+    "clean": "turbo run clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "turbo": "2.11.2",
+    "typescript": "^7.0.2"
+  }
+}

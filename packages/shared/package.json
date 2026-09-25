@@ -1,0 +1,27 @@
+{
+  "name": "@sprachpilot/shared",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
+    "type-check": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo \"lint: deferred to SP-002\"",
+    "test": "echo \"no tests yet\"",
+    "clean": "rm -rf dist .turbo *.tsbuildinfo"
+  },
+  "devDependencies": {
+    "@sprachpilot/config": "workspace:*",
+    "typescript": "^7.0.2",
+    "@types/node": "^24.5.2"
+  }
+}
