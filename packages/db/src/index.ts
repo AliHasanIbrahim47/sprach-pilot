@@ -1,10 +1,7 @@
 /**
- * Database package placeholder. Prisma client and schema arrive in SP-005.
+ * Shared Prisma data layer for API and worker (@sprachpilot/db).
  */
-import type { WorkspaceName } from "@sprachpilot/shared";
-
-export const DB_PACKAGE: WorkspaceName = "db";
-
-export function getDbPackageName(): string {
-  return "@sprachpilot/db";
-}
+export type { CreatePrismaClientOptions } from "./client.js";
+export { createPrismaClient, prisma } from "./client.js";
+export type { AuditLog, Profile, User } from "@prisma/client";
+export { CefrLevel, Prisma, PrismaClient, UserRole } from "@prisma/client";

@@ -1,3 +1,5 @@
+import { prisma } from "@sprachpilot/db";
+
 import { createApp } from "./app.js";
 import { loadConfig } from "./config.js";
 import { createContainer } from "./container.js";
@@ -14,6 +16,9 @@ export function startServer(): void {
 
   setupGracefulShutdown(server, {
     timeoutMs: config.shutdownTimeoutMs,
+    onShutdown: async () => {
+      await prisma.$disconnect();
+    },
   });
 }
 

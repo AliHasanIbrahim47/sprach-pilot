@@ -12,6 +12,7 @@
     "clean": "rm -rf dist .turbo *.tsbuildinfo"
   },
   "dependencies": {
+    "@sprachpilot/db": "workspace:*",
     "@sprachpilot/shared": "workspace:*"
   },
   "devDependencies": {

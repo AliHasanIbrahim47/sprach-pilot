@@ -13,7 +13,13 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "clean": "turbo run clean && rm -rf node_modules",
-    "prepare": "husky"
+    "prepare": "node ./scripts/ensure-pnpm-native.mjs && husky",
+    "db:migrate:dev": "pnpm --filter @sprachpilot/db db:migrate:dev",
+    "db:migrate:deploy": "pnpm --filter @sprachpilot/db db:migrate:deploy",
+    "db:seed": "pnpm --filter @sprachpilot/db db:seed",
+    "db:studio": "pnpm --filter @sprachpilot/db db:studio",
+    "db:reset": "pnpm --filter @sprachpilot/db db:reset",
+    "db:drift-check": "pnpm --filter @sprachpilot/db db:drift-check"
   },
   "lint-staged": {
     "*.{js,jsx,mjs,cjs,ts,tsx}": [
