@@ -1,0 +1,133 @@
+// SprachPilot base schema (SP-005).
+// Naming: camelCase in Prisma Client, snake_case in PostgreSQL via @map / @@map.
+// PII columns are marked with `/// @pii` for GDPR export/deletion (SP-019).
+// Indexes: every foreign key and frequent filter columns are indexed (documented below).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Direct (non-pooled) URL for migrate / introspect. Same as DATABASE_URL in local
+  // docker-compose; in production use the migrator role + direct CloudNativePG host.
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+  learner
+  volunteer
+  organizer
+  content_editor
+  moderator
+  admin
+
+  @@map("user_role")
+}
+
+enum CefrLevel {
+  A1
+  A2
+  B1
+  B2
+  C1
+  C2
+
+  @@map("cefr_level")
+}
+
+model User {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  /// @pii — store normalized (lowercase, trimmed); uniqueness is case-sensitive at DB level
+  email String @unique
+
+  /// @pii — argon2id hash; never log
+  passwordHash String @map("password_hash")
+
+  /// @pii
+  displayName String @map("display_name")
+
+  role UserRole @default(learner)
+
+  emailVerifiedAt DateTime? @map("email_verified_at") @db.Timestamptz(3)
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  profile   Profile?
+  auditLogs AuditLog[] @relation("AuditActor")
+
+  // Filter: active users by role; soft-delete exclusion uses deleted_at IS NULL
+  @@index([role], map: "users_role_idx")
+  @@index([deletedAt], map: "users_deleted_at_idx")
+  @@map("users")
+}
+
+model Profile {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  userId String @unique @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// @pii
+  nativeLanguages String[] @default([]) @map("native_languages")
+
+  uiLocale String @default("en") @map("ui_locale")
+
+  cefrLevel CefrLevel? @map("cefr_level")
+
+  /// Learning goals (work, bureaucracy, health, housing, social, exam, …)
+  goals String[] @default([])
+
+  /// @pii — city label for display; precise geo arrives in SP-047
+  cityName String? @map("city_name")
+
+  cityId String? @map("city_id")
+
+  timezone String @default("Europe/Berlin")
+
+  onboardingCompletedAt DateTime? @map("onboarding_completed_at") @db.Timestamptz(3)
+
+  /// @pii — public object-storage key/URL once uploads exist (SP-018)
+  avatarUrl String? @map("avatar_url")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  // FK user_id already unique-indexed; filter columns for recommendations
+  @@index([cefrLevel], map: "profiles_cefr_level_idx")
+  @@index([cityId], map: "profiles_city_id_idx")
+  @@index([deletedAt], map: "profiles_deleted_at_idx")
+  @@map("profiles")
+}
+
+/// Immutable admin-action trail. Soft delete is intentionally omitted.
+model AuditLog {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  actorId String? @map("actor_id") @db.Uuid
+  actor   User?   @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  action     String
+  entityType String @map("entity_type")
+  entityId   String @map("entity_id")
+
+  /// Structured before/after payload (roles, fields changed, …)
+  metadata Json @default("{}")
+
+  /// @pii — hashed client IP when available (never store raw IP)
+  ipHash String? @map("ip_hash")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  // FK actor_id + frequent filters for admin audit views
+  @@index([actorId], map: "audit_logs_actor_id_idx")
+  @@index([entityType, entityId], map: "audit_logs_entity_idx")
+  @@index([action], map: "audit_logs_action_idx")
+  @@index([createdAt], map: "audit_logs_created_at_idx")
+  @@map("audit_logs")
+}

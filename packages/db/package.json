@@ -12,20 +12,35 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "prisma generate && tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
     "type-check": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "test": "echo \"no tests yet\"",
-    "clean": "rm -rf dist .turbo *.tsbuildinfo"
+    "clean": "rm -rf dist .turbo *.tsbuildinfo",
+    "generate": "prisma generate",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:seed": "prisma db seed",
+    "db:studio": "prisma studio",
+    "db:reset": "prisma migrate reset",
+    "db:drift-check": "prisma migrate diff --from-migrations ./prisma/migrations --to-schema-datamodel ./prisma/schema.prisma --shadow-database-url \"${SHADOW_DATABASE_URL:-$DATABASE_URL}\" --exit-code"
   },
   "dependencies": {
+    "@node-rs/argon2": "^2.0.2",
+    "@prisma/client": "6.19.3",
     "@sprachpilot/shared": "workspace:*"
   },
   "devDependencies": {
     "@sprachpilot/config": "workspace:*",
     "@types/node": "^24.5.2",
     "eslint": "^9.36.0",
+    "prisma": "6.19.3",
+    "tsx": "^4.20.5",
     "typescript": "^5.9.3"
+  },
+  "prisma": {
+    "schema": "prisma/schema.prisma",
+    "seed": "tsx prisma/seed.ts"
   }
 }
