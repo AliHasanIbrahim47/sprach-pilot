@@ -14,18 +14,17 @@
     "clean": "rm -rf dist .turbo *.tsbuildinfo coverage"
   },
   "dependencies": {
+    "@sprachpilot/db": "workspace:*",
     "@sprachpilot/shared": "workspace:*",
     "compression": "^1.8.1",
     "express": "^5.1.0",
-    "ioredis": "^5.7.0",
-    "pg": "^8.16.3"
+    "ioredis": "^5.7.0"
   },
   "devDependencies": {
     "@sprachpilot/config": "workspace:*",
     "@types/compression": "^1.8.1",
     "@types/express": "^5.0.3",
     "@types/node": "^24.5.2",
-    "@types/pg": "^8.15.5",
     "@types/supertest": "^6.0.3",
     "eslint": "^9.36.0",
     "supertest": "^7.1.4",

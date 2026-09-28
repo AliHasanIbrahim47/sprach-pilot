@@ -1,29 +1,24 @@
+import { prisma } from "@sprachpilot/db";
 import { Redis } from "ioredis";
-import pg from "pg";
 
 import type { DependencyHealthPort } from "../modules/health/health.schemas.js";
 
 const CHECK_TIMEOUT_MS = 2_000;
 
-export function createDatabaseHealthCheck(databaseUrl: string | undefined): DependencyHealthPort {
+export function createDatabaseHealthCheck(): DependencyHealthPort {
   return {
     name: "database",
     async check() {
-      if (!databaseUrl) return false;
-
-      const client = new pg.Client({
-        connectionString: databaseUrl,
-        connectionTimeoutMillis: CHECK_TIMEOUT_MS,
-      });
-
       try {
-        await client.connect();
-        await client.query("SELECT 1");
+        await Promise.race([
+          prisma.$queryRaw`SELECT 1`,
+          new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error("database health check timed out")), CHECK_TIMEOUT_MS);
+          }),
+        ]);
         return true;
       } catch {
         return false;
-      } finally {
-        await client.end().catch(() => undefined);
       }
     },
   };

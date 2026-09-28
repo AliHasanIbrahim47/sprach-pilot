@@ -27,7 +27,7 @@ export function createContainer(
   overrides: ContainerOverrides = {},
 ): AppContainer {
   const dependencyChecks = overrides.dependencyChecks ?? [
-    createDatabaseHealthCheck(config.databaseUrl),
+    createDatabaseHealthCheck(),
     createRedisHealthCheck(config.redisUrl),
   ];
 
