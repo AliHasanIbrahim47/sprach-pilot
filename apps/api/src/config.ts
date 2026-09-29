@@ -9,6 +9,16 @@ export interface ApiConfig {
   jsonBodyLimit: string;
   shutdownTimeoutMs: number;
   nodeEnv: string;
+  /** When set, forces API docs on/off. When unset, docs are on unless production. */
+  enableApiDocs: boolean | undefined;
+}
+
+function parseOptionalBoolean(value: string | undefined): boolean | undefined {
+  if (value === undefined) return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) return true;
+  if (["0", "false", "no", "off"].includes(normalized)) return false;
+  return undefined;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
@@ -24,5 +34,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
       10,
     ),
     nodeEnv: env["NODE_ENV"] ?? "development",
+    enableApiDocs: parseOptionalBoolean(env["ENABLE_API_DOCS"]),
   };
 }

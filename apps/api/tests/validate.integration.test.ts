@@ -1,0 +1,82 @@
+import request from "supertest";
+import { describe, expect, it } from "vitest";
+
+import { createApp } from "../src/app.js";
+import { loadConfig } from "../src/config.js";
+import { createContainer } from "../src/container.js";
+import { REQUEST_ID_HEADER } from "../src/middleware/request-id.js";
+
+function createTestApp(env: NodeJS.ProcessEnv = {}) {
+  const config = loadConfig({
+    NODE_ENV: "test",
+    PORT: "0",
+    ...env,
+  });
+  const container = createContainer(config, {
+    dependencyChecks: [
+      { name: "database", check: async () => true },
+      { name: "redis", check: async () => true },
+    ],
+  });
+  return createApp(container);
+}
+
+describe("validateBody middleware", () => {
+  it("POST /v1/auth/register with invalid email returns 400 listing email", async () => {
+    const app = createTestApp();
+
+    const response = await request(app).post("/v1/auth/register").send({
+      email: "not-an-email",
+      password: "ChangeMe!Learner1",
+      displayName: "Demo",
+      acceptedTerms: true,
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.headers["content-type"]).toMatch(/application\/problem\+json/);
+    expect(response.body.status).toBe(400);
+    expect(response.body.errors).toEqual(
+      expect.arrayContaining([expect.objectContaining({ field: "email" })]),
+    );
+    expect(response.get(REQUEST_ID_HEADER)).toBeTruthy();
+  });
+
+  it("strips unknown body fields before the handler runs", async () => {
+    const app = createTestApp();
+
+    const response = await request(app).post("/v1/auth/register").send({
+      email: "learner@example.com",
+      password: "ChangeMe!Learner1",
+      displayName: "Demo",
+      acceptedTerms: true,
+      extraEvil: "strip-me",
+    });
+
+    expect(response.status).toBe(501);
+    expect(response.body.status).toBe("accepted");
+  });
+});
+
+describe("API docs", () => {
+  it("serves /docs and /openapi.json outside production", async () => {
+    const app = createTestApp({ NODE_ENV: "test", ENABLE_API_DOCS: undefined });
+
+    const spec = await request(app).get("/openapi.json");
+    expect(spec.status).toBe(200);
+    expect(spec.body.openapi).toBe("3.1.0");
+    expect(spec.body.paths["/v1/auth/register"]).toBeDefined();
+    expect(spec.body.paths["/healthz"]).toBeDefined();
+
+    const docs = await request(app).get("/docs");
+    expect(docs.status).toBe(200);
+  });
+
+  it("disables /docs in production unless ENABLE_API_DOCS=true", async () => {
+    const disabled = createTestApp({ NODE_ENV: "production" });
+    expect((await request(disabled).get("/docs")).status).toBe(404);
+    expect((await request(disabled).get("/openapi.json")).status).toBe(404);
+
+    const enabled = createTestApp({ NODE_ENV: "production", ENABLE_API_DOCS: "true" });
+    expect((await request(enabled).get("/openapi.json")).status).toBe(200);
+  });
+});
