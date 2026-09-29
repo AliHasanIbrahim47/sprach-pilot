@@ -7,7 +7,8 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./openapi.json": "./openapi/openapi.json"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -17,12 +18,18 @@
     "type-check": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "test": "echo \"no tests yet\"",
-    "clean": "rm -rf dist .turbo *.tsbuildinfo"
+    "clean": "rm -rf dist .turbo *.tsbuildinfo",
+    "openapi:generate": "tsx scripts/generate-openapi.ts"
+  },
+  "dependencies": {
+    "@asteasolutions/zod-to-openapi": "^8.4.3",
+    "zod": "^4.1.11"
   },
   "devDependencies": {
     "@sprachpilot/config": "workspace:*",
     "@types/node": "^24.5.2",
     "eslint": "^9.36.0",
+    "tsx": "^4.20.5",
     "typescript": "^5.9.3"
   }
 }
