@@ -16,9 +16,11 @@
   "dependencies": {
     "@sprachpilot/db": "workspace:*",
     "@sprachpilot/shared": "workspace:*",
+    "@scalar/express-api-reference": "^0.8.10",
     "compression": "^1.8.1",
     "express": "^5.1.0",
-    "ioredis": "^5.7.0"
+    "ioredis": "^5.7.0",
+    "zod": "^4.1.11"
   },
   "devDependencies": {
     "@sprachpilot/config": "workspace:*",

@@ -1,16 +1,11 @@
-export type DependencyName = "database" | "redis";
+import type { DependencyName } from "@sprachpilot/shared";
 
-export type CheckStatus = "ok" | "fail";
-
-export interface LivenessResponse {
-  status: "ok";
-}
-
-export interface ReadinessResponse {
-  status: "ok" | "not_ready";
-  checks: Record<DependencyName, CheckStatus>;
-  failing: DependencyName[];
-}
+export type {
+  CheckStatus,
+  DependencyName,
+  LivenessResponse,
+  ReadinessResponse,
+} from "@sprachpilot/shared";
 
 export interface DependencyHealthPort {
   readonly name: DependencyName;
