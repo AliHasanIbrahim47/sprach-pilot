@@ -24,10 +24,21 @@ pnpm dev
 | `pnpm db:migrate:deploy`            | Apply pending migrations (CI/CD)                          |
 | `pnpm db:seed`                      | Idempotent admin + demo learner seed                      |
 | `pnpm db:studio` / `pnpm db:reset`  | Prisma Studio / reset DB                                  |
+| `pnpm openapi:generate`             | Regenerate `packages/shared/openapi/openapi.json`         |
 
 Database package details and expand/contract rules: [`packages/db/README.md`](packages/db/README.md).
+Shared Zod contracts and OpenAPI: [`packages/shared/README.md`](packages/shared/README.md). Local API docs: `http://localhost:3001/docs`.
 
-Commit messages use [Conventional Commits](https://www.conventionalcommits.org/) with optional scopes: `api`, `web`, `worker`, `db`, `infra`, `docs`, `shared`, `config`, `repo`. Husky runs lint-staged on pre-commit and commitlint on commit-msg.
+Commit messages use ticket headers and a bullet body (enforced by commitlint):
+
+```text
+[sp-006]: Short title here
+
+- First change
+- Second change
+```
+
+Husky runs lint-staged on pre-commit and commitlint on commit-msg.
 
 ## Repository layout
 
