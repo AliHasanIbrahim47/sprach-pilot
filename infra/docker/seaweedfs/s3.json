@@ -1,0 +1,14 @@
+{
+  "identities": [
+    {
+      "name": "sprachpilot",
+      "credentials": [
+        {
+          "accessKey": "sprachpilot",
+          "secretKey": "sprachpilotsecret"
+        }
+      ],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    }
+  ]
+}

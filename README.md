@@ -7,6 +7,8 @@ Self-hosted German language-learning platform (dialogues, documents → flashcar
 ```bash
 # From the repository root
 pnpm install
+pnpm infra:up
+pnpm db:migrate:deploy && pnpm db:seed
 pnpm build
 pnpm dev
 ```
@@ -14,6 +16,7 @@ pnpm dev
 | Command                             | What it does                                              |
 | ----------------------------------- | --------------------------------------------------------- |
 | `pnpm install`                      | Installs all workspace dependencies                       |
+| `pnpm infra:up` / `down` / `reset`  | Start / stop / wipe local Docker backing services         |
 | `pnpm build`                        | Builds apps and packages in topological order (Turborepo) |
 | `pnpm dev`                          | Starts `web`, `api` and `worker` in parallel watch mode   |
 | `pnpm typecheck`                    | Type-checks every workspace (`tsc --noEmit`)              |
@@ -25,6 +28,27 @@ pnpm dev
 | `pnpm db:seed`                      | Idempotent admin + demo learner seed                      |
 | `pnpm db:studio` / `pnpm db:reset`  | Prisma Studio / reset DB                                  |
 | `pnpm openapi:generate`             | Regenerate `packages/shared/openapi/openapi.json`         |
+
+## Local infrastructure
+
+Backing services run in Docker; apps stay on the host. Details: [`infra/README.md`](infra/README.md).
+
+| Service                       | URL / port              | Dev credentials                                                          |
+| ----------------------------- | ----------------------- | ------------------------------------------------------------------------ |
+| PostgreSQL                    | `localhost:5432`        | `sprachpilot` / `sprachpilot`                                            |
+| Redis                         | `localhost:6379`        | —                                                                        |
+| S3 (SeaweedFS)                | `http://localhost:9000` | key `sprachpilot` / secret `sprachpilotsecret`, bucket `sprachpilot-dev` |
+| Mailpit UI                    | http://localhost:8025   | SMTP `localhost:1025`                                                    |
+| Grafana (optional profile)    | http://localhost:3002   | `admin` / `admin`                                                        |
+| Prometheus (optional profile) | http://localhost:9090   | —                                                                        |
+
+```bash
+pnpm infra:up
+pnpm infra:up -- --profile observability   # after pulling prometheus + grafana images
+pnpm infra:reset                           # wipe volumes and recreate
+```
+
+Copy [`.env.example`](.env.example) values into `apps/api/.env` and `packages/db/.env`.
 
 Database package details and expand/contract rules: [`packages/db/README.md`](packages/db/README.md).
 Shared Zod contracts and OpenAPI: [`packages/shared/README.md`](packages/shared/README.md). Local API docs: `http://localhost:3001/docs`.

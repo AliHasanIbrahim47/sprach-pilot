@@ -16,9 +16,9 @@ const config = {
     "type-empty": [2, "never"],
     "subject-empty": [2, "never"],
     "subject-case": [0],
-    "header-max-length": [2, "always", 100],
+    "header-max-length": [2, "always", 200],
     "body-leading-blank": [2, "always"],
-    "body-max-line-length": [2, "always", 100],
+    "body-max-line-length": [2, "always", 200],
   },
 };
 

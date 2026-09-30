@@ -20,7 +20,10 @@
     "db:studio": "pnpm --filter @sprachpilot/db db:studio",
     "db:reset": "pnpm --filter @sprachpilot/db db:reset",
     "db:drift-check": "pnpm --filter @sprachpilot/db db:drift-check",
-    "openapi:generate": "pnpm --filter @sprachpilot/shared openapi:generate"
+    "openapi:generate": "pnpm --filter @sprachpilot/shared openapi:generate",
+    "infra:up": "bash scripts/infra.sh up",
+    "infra:down": "bash scripts/infra.sh down",
+    "infra:reset": "bash scripts/infra.sh reset"
   },
   "lint-staged": {
     "*.{js,jsx,mjs,cjs,ts,tsx}": [
