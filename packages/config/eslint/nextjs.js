@@ -4,6 +4,16 @@ import reactHooksPlugin from "eslint-plugin-react-hooks";
 
 import { baseConfig } from "./base.js";
 
+/** Config modules and tool configs may read process.env directly. */
+const processEnvAllowlist = [
+  "**/config.ts",
+  "**/config/**/*.{js,mjs,cjs,ts,tsx}",
+  "**/public-config.ts",
+  "**/server-config.ts",
+  "**/*.config.{js,mjs,cjs,ts}",
+  "**/vitest.setup.ts",
+];
+
 /** @type {import("eslint").Linter.Config[]} */
 export const nextjsConfig = [
   ...baseConfig,
@@ -28,6 +38,20 @@ export const nextjsConfig = [
       ...nextPlugin.configs["core-web-vitals"].rules,
       "react/prop-types": "off",
       "@next/next/no-html-link-for-pages": "off",
+      "no-restricted-properties": [
+        "error",
+        {
+          object: "process",
+          property: "env",
+          message: "Use publicConfig / serverConfig instead of process.env.",
+        },
+      ],
+    },
+  },
+  {
+    files: processEnvAllowlist,
+    rules: {
+      "no-restricted-properties": "off",
     },
   },
 ];
