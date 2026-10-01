@@ -13,7 +13,8 @@
   },
   "dependencies": {
     "@sprachpilot/db": "workspace:*",
-    "@sprachpilot/shared": "workspace:*"
+    "@sprachpilot/shared": "workspace:*",
+    "zod": "^4.1.11"
   },
   "devDependencies": {
     "@sprachpilot/config": "workspace:*",
