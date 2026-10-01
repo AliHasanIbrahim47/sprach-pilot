@@ -1,11 +1,20 @@
 import compression from "compression";
-import express, { type Express, Router } from "express";
+import express, { type Express, type Router as ExpressRouter, Router } from "express";
 
 import type { AppContainer } from "./container.js";
+import { createConsoleLogger } from "./infrastructure/logger.js";
+import { createErrorHandler } from "./middleware/error-handler.js";
+import { notFoundHandler } from "./middleware/not-found.js";
 import { requestIdMiddleware } from "./middleware/request-id.js";
 
-export function createApp(container: AppContainer): Express {
+export type CreateAppOptions = {
+  /** Extra routers mounted under `/v1` (used by contract tests). */
+  registerV1?: (v1: ExpressRouter) => void;
+};
+
+export function createApp(container: AppContainer, options: CreateAppOptions = {}): Express {
   const app = express();
+  const logger = createConsoleLogger("api");
 
   app.disable("x-powered-by");
   app.use(requestIdMiddleware);
@@ -14,12 +23,25 @@ export function createApp(container: AppContainer): Express {
   app.use(container.healthRouter);
 
   const v1 = Router();
+  v1.use((_req, res, next) => {
+    res.setHeader("API-Version", "1");
+    next();
+  });
   v1.use("/auth", container.authRouter);
+  options.registerV1?.(v1);
   app.use("/v1", v1);
 
   if (container.docsRouter) {
     app.use(container.docsRouter);
   }
+
+  app.use(notFoundHandler);
+  app.use(
+    createErrorHandler({
+      nodeEnv: container.config.nodeEnv,
+      logger,
+    }),
+  );
 
   return app;
 }

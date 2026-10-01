@@ -1,6 +1,8 @@
 import { z } from "zod";
 
-export const ERROR_TYPE_BASE = "https://sprachpilot.app/errors";
+import { ERROR_TYPE_BASE } from "./constants.js";
+
+export { ERROR_TYPE_BASE };
 
 export const fieldErrorSchema = z
   .object({
@@ -12,10 +14,7 @@ export const fieldErrorSchema = z
 
 export type FieldError = z.infer<typeof fieldErrorSchema>;
 
-/**
- * RFC 9457 Problem Details shape (SP-009). Validation responses use this now;
- * the full error middleware lands in SP-009.
- */
+/** RFC 9457 Problem Details (SP-009). */
 export const problemDetailsSchema = z
   .object({
     type: z.string().url().max(500),
@@ -30,23 +29,57 @@ export const problemDetailsSchema = z
 
 export type ProblemDetails = z.infer<typeof problemDetailsSchema>;
 
+export type ProblemContext = {
+  instance: string;
+  requestId?: string;
+};
+
+export type ProblemSource = {
+  type: string;
+  title: string;
+  status: number;
+  detail?: string;
+  errors?: FieldError[];
+  exposeDetail: boolean;
+};
+
+export function toProblemDetails(error: ProblemSource, context: ProblemContext): ProblemDetails {
+  const problem: ProblemDetails = {
+    type: error.type,
+    title: error.title,
+    status: error.status,
+    instance: context.instance,
+  };
+
+  if (error.exposeDetail && error.detail !== undefined) {
+    problem.detail = error.detail;
+  }
+
+  if (error.errors !== undefined && error.errors.length > 0) {
+    problem.errors = error.errors;
+  }
+
+  if (context.requestId !== undefined) {
+    problem.requestId = context.requestId;
+  }
+
+  return problem;
+}
+
 export function validationProblem(input: {
   instance: string;
   requestId?: string;
   errors: FieldError[];
 }): ProblemDetails {
-  const problem: ProblemDetails = {
-    type: `${ERROR_TYPE_BASE}/validation`,
-    title: "Validation failed",
-    status: 400,
-    detail: "One or more fields are invalid",
-    instance: input.instance,
-    errors: input.errors,
-  };
-
-  if (input.requestId !== undefined) {
-    problem.requestId = input.requestId;
-  }
-
-  return problem;
+  return toProblemDetails(
+    {
+      type: `${ERROR_TYPE_BASE}/validation`,
+      title: "Validation failed",
+      status: 400,
+      detail: "One or more fields are invalid",
+      errors: input.errors,
+      exposeDetail: true,
+    },
+    input,
+  );
 }

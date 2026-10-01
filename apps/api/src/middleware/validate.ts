@@ -2,7 +2,7 @@ import { type FieldError, validationProblem } from "@sprachpilot/shared";
 import type { NextFunction, Request, Response } from "express";
 import type { ZodType } from "zod";
 
-import { REQUEST_ID_HEADER } from "./request-id.js";
+import { readRequestId } from "./request-id.js";
 
 type RequestTarget = "body" | "query" | "params";
 
@@ -33,10 +33,21 @@ function writeTarget(req: Request, target: RequestTarget, value: unknown): void 
       req.body = value;
       return;
     case "query":
-      req.query = value as Request["query"];
+      // Express 5 exposes req.query as a getter; replace via defineProperty.
+      Object.defineProperty(req, "query", {
+        value,
+        writable: true,
+        configurable: true,
+        enumerable: true,
+      });
       return;
     case "params":
-      req.params = value as Request["params"];
+      Object.defineProperty(req, "params", {
+        value,
+        writable: true,
+        configurable: true,
+        enumerable: true,
+      });
   }
 }
 
@@ -45,8 +56,7 @@ function validateTarget(schema: ZodType, target: RequestTarget) {
     const result = schema.safeParse(readTarget(req, target));
 
     if (!result.success) {
-      const requestIdHeader = res.getHeader(REQUEST_ID_HEADER);
-      const requestId = typeof requestIdHeader === "string" ? requestIdHeader : undefined;
+      const requestId = readRequestId(req, res);
       const problem = validationProblem({
         instance: req.originalUrl,
         errors: zodIssuesToFieldErrors(result.error.issues),
