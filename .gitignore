@@ -43,5 +43,9 @@ coverage/
 tmp/
 temp/
 
-# Docs
-docs/
+# Docs — ignore drafts/backlog; keep API catalogue + ADRs trackable
+docs/*
+!docs/api/
+!docs/api/**
+!docs/adr/
+!docs/adr/**

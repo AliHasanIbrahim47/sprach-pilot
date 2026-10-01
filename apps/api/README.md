@@ -74,6 +74,7 @@ tests/                     # Supertest integration tests
 
 ## Notes
 
-- Central error middleware and full Problem Details catalogue: SP-009.
+- Errors use RFC 9457 Problem Details via central middleware (see [`docs/api/errors.md`](../../docs/api/errors.md)).
+- Feature routes are under `/v1` and set `API-Version: 1`.
 - Full registration/login: SP-012.
 - Prefer injecting fakes at the container boundary for unit tests.
