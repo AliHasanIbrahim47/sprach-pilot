@@ -81,6 +81,30 @@ openApiRegistry.registerPath({
         },
       },
     },
+    404: {
+      description: "Not found (shared Problem Details catalogue)",
+      content: {
+        "application/problem+json": {
+          schema: problemDetailsSchema,
+        },
+      },
+    },
+    409: {
+      description: "Conflict (e.g. unique constraint)",
+      content: {
+        "application/problem+json": {
+          schema: problemDetailsSchema,
+        },
+      },
+    },
+    500: {
+      description: "Unexpected server error",
+      content: {
+        "application/problem+json": {
+          schema: problemDetailsSchema,
+        },
+      },
+    },
     501: {
       description: "Validated but not implemented yet (SP-012)",
       content: {
