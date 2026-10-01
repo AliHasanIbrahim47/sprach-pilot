@@ -6,12 +6,10 @@ import { loadConfig } from "../src/config.js";
 import { createContainer } from "../src/container.js";
 import { REQUEST_ID_HEADER } from "../src/middleware/request-id.js";
 import type { DependencyHealthPort } from "../src/modules/health/health.schemas.js";
+import { createValidApiEnv } from "./helpers/env.js";
 
 function createAppWithChecks(checks: DependencyHealthPort[]) {
-  const config = loadConfig({
-    NODE_ENV: "test",
-    PORT: "0",
-  });
+  const config = loadConfig(createValidApiEnv());
   const container = createContainer(config, { dependencyChecks: checks });
   return createApp(container);
 }

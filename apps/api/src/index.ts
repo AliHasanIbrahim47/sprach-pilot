@@ -1,12 +1,21 @@
 import { prisma } from "@sprachpilot/db";
 
 import { createApp } from "./app.js";
-import { loadConfig } from "./config.js";
+import { formatConfigForLog, loadConfig } from "./config.js";
 import { createContainer } from "./container.js";
 import { setupGracefulShutdown } from "./server/graceful-shutdown.js";
 
 export function startServer(): void {
-  const config = loadConfig();
+  let config;
+  try {
+    config = loadConfig();
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : error);
+    process.exit(1);
+  }
+
+  console.info("[api] config", formatConfigForLog(config));
+
   const container = createContainer(config);
   const app = createApp(container);
 
