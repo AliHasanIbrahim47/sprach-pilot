@@ -1,4 +1,5 @@
-export const appConfig = {
-  name: process.env["NEXT_PUBLIC_APP_NAME"] ?? "SprachPilot",
-  apiBaseUrl: process.env["API_BASE_URL"] ?? "http://localhost:3001",
-} as const;
+/**
+ * Public (client-safe) app config.
+ * Prefer importing `publicConfig` / `serverConfig` explicitly for new code.
+ */
+export { publicConfig as appConfig, type PublicConfig } from "./public-config";

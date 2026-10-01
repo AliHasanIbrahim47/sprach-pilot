@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 
-import { appConfig } from "./config";
+import { serverConfig } from "./server-config";
 
 export class ApiClientError extends Error {
   readonly status: number;
@@ -44,7 +44,7 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
     }
   }
 
-  const url = path.startsWith("http") ? path : `${appConfig.apiBaseUrl}${path}`;
+  const url = path.startsWith("http") ? path : `${serverConfig.apiBaseUrl}${path}`;
   const response = await fetch(url, {
     ...init,
     headers,

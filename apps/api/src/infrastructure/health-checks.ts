@@ -13,7 +13,10 @@ export function createDatabaseHealthCheck(): DependencyHealthPort {
         await Promise.race([
           prisma.$queryRaw`SELECT 1`,
           new Promise<never>((_, reject) => {
-            setTimeout(() => reject(new Error("database health check timed out")), CHECK_TIMEOUT_MS);
+            setTimeout(
+              () => reject(new Error("database health check timed out")),
+              CHECK_TIMEOUT_MS,
+            );
           }),
         ]);
         return true;
@@ -24,12 +27,10 @@ export function createDatabaseHealthCheck(): DependencyHealthPort {
   };
 }
 
-export function createRedisHealthCheck(redisUrl: string | undefined): DependencyHealthPort {
+export function createRedisHealthCheck(redisUrl: string): DependencyHealthPort {
   return {
     name: "redis",
     async check() {
-      if (!redisUrl) return false;
-
       const redis = new Redis(redisUrl, {
         connectTimeout: CHECK_TIMEOUT_MS,
         maxRetriesPerRequest: 1,

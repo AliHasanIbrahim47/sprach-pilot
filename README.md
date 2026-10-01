@@ -48,7 +48,7 @@ pnpm infra:up -- --profile observability   # after pulling prometheus + grafana 
 pnpm infra:reset                           # wipe volumes and recreate
 ```
 
-Copy [`.env.example`](.env.example) values into `apps/api/.env` and `packages/db/.env`.
+Copy [`.env.example`](.env.example) (or the per-app examples under `apps/*/`) into `apps/api/.env`, `apps/worker/.env`, `apps/web/.env.local`, and `packages/db/.env`. Config is validated with Zod at startup (SP-008); missing required vars such as `DATABASE_URL` fail fast.
 
 Database package details and expand/contract rules: [`packages/db/README.md`](packages/db/README.md).
 Shared Zod contracts and OpenAPI: [`packages/shared/README.md`](packages/shared/README.md). Local API docs: `http://localhost:3001/docs`.

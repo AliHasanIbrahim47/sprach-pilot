@@ -5,13 +5,10 @@ import { fileURLToPath } from "node:url";
 
 import { z } from "zod";
 
-const SHUTDOWN_TIMEOUT_MS = 25_000;
-const JSON_BODY_LIMIT = "1mb";
-const DEFAULT_PORT = 3001;
 const REDACTED = "[REDACTED]";
 
 /**
- * Load `apps/api/.env` for local DX. Existing process.env wins (12-factor).
+ * Load `apps/worker/.env` for local DX. Existing process.env wins (12-factor).
  * Production injects env via the runtime; a missing file is fine.
  */
 function loadLocalEnvFile(): void {
@@ -28,14 +25,6 @@ const aiModeSchema = z.enum(["stub", "local"]).default("stub");
 const emptyToUndefined = (value: string | undefined): string | undefined =>
   value === undefined || value.trim() === "" ? undefined : value;
 
-const optionalBooleanSchema = z
-  .enum(["true", "false", "1", "0", "yes", "no", "on", "off"])
-  .optional()
-  .transform((value): boolean | undefined => {
-    if (value === undefined) return undefined;
-    return ["true", "1", "yes", "on"].includes(value);
-  });
-
 const requiredBooleanSchema = (fallback: boolean) =>
   z
     .enum(["true", "false", "1", "0", "yes", "no", "on", "off"])
@@ -45,14 +34,10 @@ const requiredBooleanSchema = (fallback: boolean) =>
       return ["true", "1", "yes", "on"].includes(value);
     });
 
-const apiEnvSchema = z.object({
+const workerEnvSchema = z.object({
   NODE_ENV: nodeEnvSchema,
-  PORT: z.coerce.number().int().min(0).default(DEFAULT_PORT),
   DATABASE_URL: z.string().min(1, "must be a non-empty connection string"),
   REDIS_URL: z.string().min(1, "must be a non-empty connection string"),
-  JSON_BODY_LIMIT: z.string().min(1).default(JSON_BODY_LIMIT),
-  SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().positive().default(SHUTDOWN_TIMEOUT_MS),
-  ENABLE_API_DOCS: optionalBooleanSchema,
 
   S3_ENDPOINT: z.string().url("must be a valid URL"),
   S3_REGION: z.string().min(1),
@@ -67,17 +52,6 @@ const apiEnvSchema = z.object({
   SMTP_USER: z.string().optional().transform(emptyToUndefined),
   SMTP_PASS: z.string().optional().transform(emptyToUndefined),
 
-  JWT_ACCESS_SECRET: z.string().optional().transform(emptyToUndefined),
-  JWT_REFRESH_SECRET: z.string().optional().transform(emptyToUndefined),
-
-  GOOGLE_OAUTH_CLIENT_ID: z.string().optional().transform(emptyToUndefined),
-  GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional().transform(emptyToUndefined),
-  GOOGLE_OAUTH_REDIRECT_URI: z
-    .string()
-    .optional()
-    .transform(emptyToUndefined)
-    .pipe(z.string().url().optional()),
-
   AI_MODE: aiModeSchema,
   ML_SERVICE_URL: z.string().url().default("http://localhost:8081"),
   OLLAMA_URL: z.string().url().default("http://localhost:11434"),
@@ -87,14 +61,10 @@ const apiEnvSchema = z.object({
   FEATURE_REGISTRATION_ENABLED: requiredBooleanSchema(true),
 });
 
-export type ApiConfig = Readonly<{
+export type WorkerConfig = Readonly<{
   nodeEnv: z.infer<typeof nodeEnvSchema>;
-  port: number;
   databaseUrl: string;
   redisUrl: string;
-  jsonBodyLimit: string;
-  shutdownTimeoutMs: number;
-  enableApiDocs: boolean | undefined;
   s3: Readonly<{
     endpoint: string;
     region: string;
@@ -110,17 +80,6 @@ export type ApiConfig = Readonly<{
     user: string | undefined;
     pass: string | undefined;
   }>;
-  jwt: Readonly<{
-    accessSecret: string | undefined;
-    refreshSecret: string | undefined;
-  }>;
-  oauth: Readonly<{
-    google: Readonly<{
-      clientId: string;
-      clientSecret: string;
-      redirectUri: string;
-    }> | null;
-  }>;
   ai: Readonly<{
     mode: z.infer<typeof aiModeSchema>;
     mlServiceUrl: string;
@@ -133,16 +92,7 @@ export type ApiConfig = Readonly<{
   }>;
 }>;
 
-const SECRET_KEYS = new Set([
-  "databaseUrl",
-  "redisUrl",
-  "accessKeyId",
-  "secretAccessKey",
-  "pass",
-  "accessSecret",
-  "refreshSecret",
-  "clientSecret",
-]);
+const SECRET_KEYS = new Set(["databaseUrl", "redisUrl", "accessKeyId", "secretAccessKey", "pass"]);
 
 function deepFreeze<T>(value: T): T {
   if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
@@ -162,24 +112,11 @@ function formatZodError(error: z.ZodError): string {
   return `Invalid configuration:\n${lines.join("\n")}`;
 }
 
-function toApiConfig(env: z.infer<typeof apiEnvSchema>): ApiConfig {
-  const googleOAuth =
-    env.GOOGLE_OAUTH_CLIENT_ID && env.GOOGLE_OAUTH_CLIENT_SECRET && env.GOOGLE_OAUTH_REDIRECT_URI
-      ? {
-          clientId: env.GOOGLE_OAUTH_CLIENT_ID,
-          clientSecret: env.GOOGLE_OAUTH_CLIENT_SECRET,
-          redirectUri: env.GOOGLE_OAUTH_REDIRECT_URI,
-        }
-      : null;
-
+function toWorkerConfig(env: z.infer<typeof workerEnvSchema>): WorkerConfig {
   return deepFreeze({
     nodeEnv: env.NODE_ENV,
-    port: env.PORT,
     databaseUrl: env.DATABASE_URL,
     redisUrl: env.REDIS_URL,
-    jsonBodyLimit: env.JSON_BODY_LIMIT,
-    shutdownTimeoutMs: env.SHUTDOWN_TIMEOUT_MS,
-    enableApiDocs: env.ENABLE_API_DOCS,
     s3: {
       endpoint: env.S3_ENDPOINT,
       region: env.S3_REGION,
@@ -195,11 +132,6 @@ function toApiConfig(env: z.infer<typeof apiEnvSchema>): ApiConfig {
       user: env.SMTP_USER,
       pass: env.SMTP_PASS,
     },
-    jwt: {
-      accessSecret: env.JWT_ACCESS_SECRET,
-      refreshSecret: env.JWT_REFRESH_SECRET,
-    },
-    oauth: { google: googleOAuth },
     ai: {
       mode: env.AI_MODE,
       mlServiceUrl: env.ML_SERVICE_URL,
@@ -213,12 +145,12 @@ function toApiConfig(env: z.infer<typeof apiEnvSchema>): ApiConfig {
   });
 }
 
-export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
-  const result = apiEnvSchema.safeParse(env);
+export function loadConfig(env: NodeJS.ProcessEnv = process.env): WorkerConfig {
+  const result = workerEnvSchema.safeParse(env);
   if (!result.success) {
     throw new Error(formatZodError(result.error));
   }
-  return toApiConfig(result.data);
+  return toWorkerConfig(result.data);
 }
 
 function redactValue(key: string, value: unknown): unknown {
@@ -236,6 +168,6 @@ function redactValue(key: string, value: unknown): unknown {
 }
 
 /** Safe snapshot for startup logs — secret leaf values become `[REDACTED]`. */
-export function formatConfigForLog(config: ApiConfig): Record<string, unknown> {
+export function formatConfigForLog(config: WorkerConfig): Record<string, unknown> {
   return redactValue("root", config) as Record<string, unknown>;
 }

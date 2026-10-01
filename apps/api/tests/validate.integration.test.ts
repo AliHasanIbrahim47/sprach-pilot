@@ -5,13 +5,10 @@ import { createApp } from "../src/app.js";
 import { loadConfig } from "../src/config.js";
 import { createContainer } from "../src/container.js";
 import { REQUEST_ID_HEADER } from "../src/middleware/request-id.js";
+import { createValidApiEnv } from "./helpers/env.js";
 
 function createTestApp(env: NodeJS.ProcessEnv = {}) {
-  const config = loadConfig({
-    NODE_ENV: "test",
-    PORT: "0",
-    ...env,
-  });
+  const config = loadConfig(createValidApiEnv(env));
   const container = createContainer(config, {
     dependencyChecks: [
       { name: "database", check: async () => true },

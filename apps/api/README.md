@@ -5,7 +5,7 @@ Express 5 + TypeScript ESM service for SprachPilot.
 ## Quick start
 
 ```bash
-# from repo root
+# from repo root — copy apps/api/.env.example → apps/api/.env first
 pnpm --filter @sprachpilot/api dev
 ```
 
@@ -19,18 +19,9 @@ Default listen address: `http://localhost:3001`
 | `GET /openapi.json`      | OpenAPI 3.1 document (non-production, or `ENABLE_API_DOCS`) |
 | `GET /docs`              | Scalar API reference UI                                     |
 
-Optional env:
+Config is validated with Zod at startup (see [`.env.example`](./.env.example)). `DATABASE_URL`, `REDIS_URL`, S3, and SMTP vars are required. Local `apps/api/.env` is loaded automatically; process env still wins.
 
-| Variable              | Default | Meaning                                                           |
-| --------------------- | ------- | ----------------------------------------------------------------- |
-| `PORT`                | `3001`  | HTTP port                                                         |
-| `DATABASE_URL`        | unset   | PostgreSQL connection string for readiness                        |
-| `REDIS_URL`           | unset   | Redis connection string for readiness                             |
-| `JSON_BODY_LIMIT`     | `1mb`   | Express JSON body limit                                           |
-| `SHUTDOWN_TIMEOUT_MS` | `25000` | Max wait for in-flight requests on SIGTERM                        |
-| `ENABLE_API_DOCS`     | unset   | Force docs on (`true`) / off (`false`); default off in production |
-
-Without `DATABASE_URL` / `REDIS_URL` (or when those services are down), `/readyz` returns **503** and lists the failing dependency in `failing`.
+When dependencies are down, `/readyz` returns **503** and lists the failing name in `failing`.
 
 ## Module structure
 
