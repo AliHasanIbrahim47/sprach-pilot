@@ -18,6 +18,9 @@ export function createHealthStatus(service: WorkspaceName): HealthStatus {
   };
 }
 
+export type { LoginBody, LoginSuccessResponse } from "./auth/login.js";
+export { loginBodySchema, loginSuccessResponseSchema } from "./auth/login.js";
+export { AUTH_COPY } from "./auth/messages.js";
 export type { RegisterAcceptedResponse, RegisterBody } from "./auth/register.js";
 export { registerAcceptedResponseSchema, registerBodySchema } from "./auth/register.js";
 export type { AppErrorCode, AppErrorOptions } from "./errors/app-error.js";

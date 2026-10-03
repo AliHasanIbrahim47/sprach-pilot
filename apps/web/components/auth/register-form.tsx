@@ -4,20 +4,29 @@ import { type RegisterBody, registerBodySchema } from "@sprachpilot/shared";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
 
+import { fieldMessage } from "@/components/auth/field-message";
+import { PasswordField } from "@/components/auth/password-field";
 import { Button } from "@/components/ui/button";
-
-type FieldErrors = Partial<Record<keyof RegisterBody | "_root", string>>;
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Link } from "@/i18n/navigation";
+import { registerAccount } from "@/lib/auth-actions";
+import { type AuthFieldErrors, zodIssuesToFieldErrors } from "@/lib/auth-field-errors";
 
 export function RegisterForm(): React.JSX.Element {
   const t = useTranslations("Auth");
-  const [errors, setErrors] = useState<FieldErrors>({});
-  const [message, setMessage] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<AuthFieldErrors>({});
+  const [summary, setSummary] = useState("");
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>): void {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    setMessage(null);
+    setSummary("");
+    setIsSuccess(false);
 
-    const formData = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const formData = new FormData(form);
     const parsed = registerBodySchema.safeParse({
       email: formData.get("email"),
       password: formData.get("password"),
@@ -26,68 +35,113 @@ export function RegisterForm(): React.JSX.Element {
     });
 
     if (!parsed.success) {
-      const nextErrors: FieldErrors = {};
-      for (const issue of parsed.error.issues) {
-        const key = (issue.path[0] as keyof RegisterBody | undefined) ?? "_root";
-        nextErrors[key] = issue.message;
-      }
-      setErrors(nextErrors);
+      setFieldErrors(zodIssuesToFieldErrors(parsed.error.issues));
+      setSummary(t("invalidField"));
       return;
     }
 
-    setErrors({});
-    setMessage(t("validStub"));
+    setFieldErrors({});
+    setIsSubmitting(true);
+    try {
+      const result = await registerAccount(parsed.data satisfies RegisterBody);
+      if (!result.ok) {
+        setFieldErrors(result.fieldErrors ?? {});
+        setSummary(summaryFor(result.code, t));
+        return;
+      }
+      setIsSuccess(true);
+      setSummary(t("verifyEmail"));
+      form.reset();
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
+  const emailError = fieldErrors.email ? fieldMessage(fieldErrors.email, t) : undefined;
+  const nameError = fieldErrors.displayName ? fieldMessage(fieldErrors.displayName, t) : undefined;
+  const passwordError = fieldErrors.password ? fieldMessage(fieldErrors.password, t) : undefined;
+  const consentError = fieldErrors.acceptedTerms
+    ? fieldMessage(fieldErrors.acceptedTerms, t)
+    : undefined;
+
   return (
-    <form className="flex max-w-md flex-col gap-4" onSubmit={handleSubmit} noValidate>
-      <label className="flex flex-col gap-1 text-sm">
-        <span>{t("email")}</span>
-        <input
+    <form className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
+      <p aria-live="polite" className={isSuccess ? "text-sm" : "text-destructive text-sm"}>
+        {summary}
+      </p>
+
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="register-email">{t("email")}</Label>
+        <Input
+          id="register-email"
           name="email"
           type="email"
           autoComplete="email"
-          className="border-input bg-background rounded-md border px-3 py-2"
+          {...(emailError
+            ? { "aria-invalid": true as const, "aria-describedby": "register-email-error" }
+            : {})}
         />
-        {errors.email ? <span className="text-destructive text-xs">{errors.email}</span> : null}
-      </label>
+        {emailError ? (
+          <p id="register-email-error" className="text-destructive text-xs">
+            {emailError}
+          </p>
+        ) : null}
+      </div>
 
-      <label className="flex flex-col gap-1 text-sm">
-        <span>{t("displayName")}</span>
-        <input
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="register-display-name">{t("displayName")}</Label>
+        <Input
+          id="register-display-name"
           name="displayName"
           type="text"
           autoComplete="nickname"
-          className="border-input bg-background rounded-md border px-3 py-2"
+          {...(nameError
+            ? { "aria-invalid": true as const, "aria-describedby": "register-name-error" }
+            : {})}
         />
-        {errors.displayName ? (
-          <span className="text-destructive text-xs">{errors.displayName}</span>
+        {nameError ? (
+          <p id="register-name-error" className="text-destructive text-xs">
+            {nameError}
+          </p>
         ) : null}
-      </label>
+      </div>
 
-      <label className="flex flex-col gap-1 text-sm">
-        <span>{t("password")}</span>
-        <input
-          name="password"
-          type="password"
-          autoComplete="new-password"
-          className="border-input bg-background rounded-md border px-3 py-2"
-        />
-        {errors.password ? (
-          <span className="text-destructive text-xs">{errors.password}</span>
-        ) : null}
-      </label>
+      <PasswordField
+        name="password"
+        label={t("password")}
+        autoComplete="new-password"
+        showLabel={t("showPassword")}
+        hideLabel={t("hidePassword")}
+        error={passwordError}
+      />
 
-      <label className="flex items-center gap-2 text-sm">
-        <input name="acceptedTerms" type="checkbox" />
-        <span>{t("acceptedTerms")}</span>
-      </label>
-      {errors.acceptedTerms ? (
-        <span className="text-destructive text-xs">{errors.acceptedTerms}</span>
-      ) : null}
+      <div className="flex flex-col gap-1.5">
+        <Label className="flex items-start gap-2 font-normal">
+          <input name="acceptedTerms" type="checkbox" className="mt-0.5 size-4" />
+          <span>{t("acceptedTerms")}</span>
+        </Label>
+        {consentError ? <p className="text-destructive text-xs">{consentError}</p> : null}
+      </div>
 
-      <Button type="submit">{t("submit")}</Button>
-      {message ? <p className="text-muted-foreground text-sm">{message}</p> : null}
+      <Button type="submit" disabled={isSubmitting} aria-busy={isSubmitting}>
+        {isSubmitting ? t("submitting") : t("submit")}
+      </Button>
+
+      <p className="text-muted-foreground text-sm">
+        {t("haveAccount")}{" "}
+        <Link href="/login" className="text-foreground underline-offset-4 hover:underline">
+          {t("goToSignIn")}
+        </Link>
+      </p>
     </form>
   );
+}
+
+function summaryFor(
+  code: "validation" | "unauthorized" | "forbidden" | "rate-limited" | "internal",
+  t: (key: "invalidField" | "registrationDisabled" | "genericError") => string,
+): string {
+  if (code === "forbidden") return t("registrationDisabled");
+  if (code === "validation") return t("invalidField");
+  return t("genericError");
 }

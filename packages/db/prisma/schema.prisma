@@ -57,8 +57,9 @@ model User {
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
 
-  profile   Profile?
-  auditLogs AuditLog[] @relation("AuditActor")
+  profile        Profile?
+  auditLogs      AuditLog[]      @relation("AuditActor")
+  consentRecords ConsentRecord[]
 
   // Filter: active users by role; soft-delete exclusion uses deleted_at IS NULL
   @@index([role], map: "users_role_idx")
@@ -103,6 +104,29 @@ model Profile {
   @@index([cityId], map: "profiles_city_id_idx")
   @@index([deletedAt], map: "profiles_deleted_at_idx")
   @@map("profiles")
+}
+
+/// Terms and Privacy acceptance captured at registration (SP-012).
+/// One row per policy so later GDPR export can address each document.
+model ConsentRecord {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  userId String @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Policy identifier, e.g. `terms` or `privacy`.
+  policy  String
+  version String
+
+  acceptedAt DateTime @map("accepted_at") @db.Timestamptz(3)
+
+  /// @pii — HMAC-SHA256 of the client IP; never store the raw address
+  ipHash String @map("ip_hash")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([userId], map: "consent_records_user_id_idx")
+  @@map("consent_records")
 }
 
 /// Immutable admin-action trail. Soft delete is intentionally omitted.

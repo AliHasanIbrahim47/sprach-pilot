@@ -21,6 +21,7 @@ const serverEnvSchema = z.object({
   FEATURE_REGISTRATION_ENABLED: requiredBooleanSchema(true),
   GOOGLE_OAUTH_CLIENT_ID: z.string().optional().transform(emptyToUndefined),
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional().transform(emptyToUndefined),
+  INTERNAL_API_SECRET: z.string().optional().transform(emptyToUndefined),
 });
 
 export type ServerConfig = Readonly<{
@@ -32,9 +33,10 @@ export type ServerConfig = Readonly<{
     googleClientId: string | undefined;
     googleClientSecret: string | undefined;
   }>;
+  internalApiSecret: string | undefined;
 }>;
 
-const SECRET_KEYS = new Set(["googleClientSecret"]);
+const SECRET_KEYS = new Set(["googleClientSecret", "internalApiSecret"]);
 
 function deepFreeze<T>(value: T): T {
   if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
@@ -60,6 +62,7 @@ export function loadServerConfig(env: NodeJS.ProcessEnv = process.env): ServerCo
     FEATURE_REGISTRATION_ENABLED: env["FEATURE_REGISTRATION_ENABLED"],
     GOOGLE_OAUTH_CLIENT_ID: env["GOOGLE_OAUTH_CLIENT_ID"],
     GOOGLE_OAUTH_CLIENT_SECRET: env["GOOGLE_OAUTH_CLIENT_SECRET"],
+    INTERNAL_API_SECRET: env["INTERNAL_API_SECRET"],
   });
   if (!result.success) {
     throw new Error(formatZodError(result.error));
@@ -74,6 +77,7 @@ export function loadServerConfig(env: NodeJS.ProcessEnv = process.env): ServerCo
       googleClientId: result.data.GOOGLE_OAUTH_CLIENT_ID,
       googleClientSecret: result.data.GOOGLE_OAUTH_CLIENT_SECRET,
     },
+    internalApiSecret: result.data.INTERNAL_API_SECRET,
   });
 }
 

@@ -11,15 +11,18 @@ pnpm --filter @sprachpilot/api dev
 
 Default listen address: `http://localhost:3001`
 
-| Endpoint                 | Purpose                                                     |
-| ------------------------ | ----------------------------------------------------------- |
-| `GET /healthz`           | Liveness — process is up                                    |
-| `GET /readyz`            | Readiness — PostgreSQL and Redis reachable                  |
-| `POST /v1/auth/register` | Validates registration body (persistence in SP-012)         |
-| `GET /openapi.json`      | OpenAPI 3.1 document (non-production, or `ENABLE_API_DOCS`) |
-| `GET /docs`              | Scalar API reference UI                                     |
+| Endpoint                 | Purpose                                                          |
+| ------------------------ | ---------------------------------------------------------------- |
+| `GET /healthz`           | Liveness — process is up                                         |
+| `GET /readyz`            | Readiness — PostgreSQL and Redis reachable                       |
+| `POST /v1/auth/register` | Create an account (identical response if the email exists)       |
+| `POST /v1/auth/login`    | Verify email and password                                        |
+| `POST /v1/auth/logout`   | End the session (token revocation is SP-013)                     |
+| `GET /metrics`           | Prometheus counters `auth_login_total` and `auth_register_total` |
+| `GET /openapi.json`      | OpenAPI 3.1 document (non-production, or `ENABLE_API_DOCS`)      |
+| `GET /docs`              | Scalar API reference UI                                          |
 
-Config is validated with Zod at startup (see [`.env.example`](./.env.example)). `DATABASE_URL`, `REDIS_URL`, S3, and SMTP vars are required. Local `apps/api/.env` is loaded automatically; process env still wins.
+Config is validated with Zod at startup (see [`.env.example`](./.env.example)). `DATABASE_URL`, `REDIS_URL`, S3, SMTP, and `IP_HASH_SECRET` are required. Local `apps/api/.env` is loaded automatically; process env still wins.
 
 When dependencies are down, `/readyz` returns **503** and lists the failing name in `failing`.
 
@@ -67,5 +70,19 @@ tests/                     # Supertest integration tests
 
 - Errors use RFC 9457 Problem Details via central middleware (see [`docs/api/errors.md`](../../docs/api/errors.md)).
 - Feature routes are under `/v1` and set `API-Version: 1`.
-- Full registration/login: SP-012.
 - Prefer injecting fakes at the container boundary for unit tests.
+
+## Authentication (SP-012)
+
+Passwords are hashed with argon2id in `packages/db/src/password.ts`:
+
+| Parameter   | Value              | Notes                     |
+| ----------- | ------------------ | ------------------------- |
+| algorithm   | Argon2id           | OWASP recommendation      |
+| memoryCost  | 19456 KiB (19 MiB) | Minimum required by NFR-1 |
+| timeCost    | 2                  | Passes                    |
+| parallelism | 1                  | Single lane               |
+
+Registration stores two consent rows (`terms`, `privacy`), version `2026-10-03`, the acceptance time, and an HMAC-SHA256 of the client IP (`IP_HASH_SECRET`). Raw IPs and passwords are not written to application logs.
+
+A bundled NCSC common-password list (length ≥ 10) rejects passwords such as `password123` without calling an external API. Login failures share one message. After 5 failures in 15 minutes for an email and IP pair, the next attempt returns **429** with `Retry-After`. The handler does not sleep the request. Session tokens are SP-013; logout currently returns 204.

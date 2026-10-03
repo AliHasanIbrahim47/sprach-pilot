@@ -5,12 +5,19 @@ import { serverConfig } from "./server-config";
 export class ApiClientError extends Error {
   readonly status: number;
   readonly body: unknown;
+  readonly retryAfterSeconds: number | undefined;
 
-  constructor(message: string, status: number, body: unknown) {
+  constructor(
+    message: string,
+    status: number,
+    body: unknown,
+    retryAfterSeconds: number | undefined = undefined,
+  ) {
     super(message);
     this.name = "ApiClientError";
     this.status = status;
     this.body = body;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }
 
@@ -52,13 +59,23 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
   });
 
   const contentType = response.headers.get("content-type") ?? "";
-  const body = contentType.includes("application/json")
-    ? await response.json()
-    : await response.text();
+  const body = contentType.includes("json") ? await response.json() : await response.text();
 
   if (!response.ok) {
-    throw new ApiClientError(`API request failed: ${response.status}`, response.status, body);
+    throw new ApiClientError(
+      `API request failed: ${response.status}`,
+      response.status,
+      body,
+      readRetryAfterSeconds(response.headers.get("retry-after")),
+    );
   }
 
   return body as T;
+}
+
+function readRetryAfterSeconds(header: string | null): number | undefined {
+  if (header === null) return undefined;
+  const seconds = Number(header);
+  if (!Number.isFinite(seconds) || seconds < 0) return undefined;
+  return Math.ceil(seconds);
 }

@@ -2,6 +2,7 @@ import {
   ERROR_TYPE_BASE,
   isAppError,
   type ProblemDetails,
+  RateLimitedError,
   toProblemDetails,
 } from "@sprachpilot/shared";
 import type { ErrorRequestHandler, NextFunction, Request, Response } from "express";
@@ -42,6 +43,10 @@ export function createErrorHandler(options: ErrorHandlerOptions): ErrorRequestHa
     const domainError = isAppError(error) ? error : mapPrismaError(error);
 
     if (domainError) {
+      if (domainError instanceof RateLimitedError && domainError.retryAfterSeconds !== undefined) {
+        res.setHeader("Retry-After", String(domainError.retryAfterSeconds));
+      }
+
       const problem = domainError.toProblemDetails(context);
       const logMeta = {
         requestId,

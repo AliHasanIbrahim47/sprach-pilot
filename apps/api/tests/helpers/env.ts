@@ -18,6 +18,8 @@ export function createValidApiEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.Pro
     JWT_ACCESS_SECRET: "jwt-access-secret-value",
     JWT_REFRESH_SECRET: "jwt-refresh-secret-value",
     GOOGLE_OAUTH_CLIENT_SECRET: "google-oauth-secret",
+    IP_HASH_SECRET: "ip-hash-secret-value",
+    INTERNAL_API_SECRET: "internal-api-secret-value",
     ...overrides,
   };
 }

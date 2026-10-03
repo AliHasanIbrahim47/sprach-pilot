@@ -74,9 +74,7 @@ function main() {
     console.warn(
       "[ensure-pnpm-native] failed to install the native binary; turbo may fail with Exec format error.",
     );
-    console.warn(
-      `  Manual fix: node ${installScript}`,
-    );
+    console.warn(`  Manual fix: node ${installScript}`);
   }
 }
 

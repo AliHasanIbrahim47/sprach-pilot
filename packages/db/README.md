@@ -15,32 +15,34 @@ import { prisma, UserRole } from "@sprachpilot/db";
 
 ## Scripts (from repo root)
 
-| Command | Purpose |
-| --- | --- |
-| `pnpm db:migrate:dev` | Create and apply a migration from schema changes (interactive) |
-| `pnpm db:migrate:deploy` | Apply pending migrations non-interactively (CI/CD) |
-| `pnpm db:seed` | Upsert admin + demo learner (idempotent) |
-| `pnpm db:studio` | Open Prisma Studio |
-| `pnpm db:reset` | Drop, re-migrate and re-seed (local only) |
-| `pnpm db:drift-check` | Fail if `schema.prisma` drifts from `prisma/migrations` |
+| Command                  | Purpose                                                        |
+| ------------------------ | -------------------------------------------------------------- |
+| `pnpm db:migrate:dev`    | Create and apply a migration from schema changes (interactive) |
+| `pnpm db:migrate:deploy` | Apply pending migrations non-interactively (CI/CD)             |
+| `pnpm db:seed`           | Upsert admin + demo learner (idempotent)                       |
+| `pnpm db:studio`         | Open Prisma Studio                                             |
+| `pnpm db:reset`          | Drop, re-migrate and re-seed (local only)                      |
+| `pnpm db:drift-check`    | Fail if `schema.prisma` drifts from `prisma/migrations`        |
 
 Inside the package the same scripts exist without the root proxy (`pnpm --filter @sprachpilot/db db:migrate:dev`).
 
 ## Seed accounts
 
-| Email | Password | Role |
-| --- | --- | --- |
-| `admin@sprachpilot.local` | `ChangeMe!Admin1` | `admin` |
+| Email                       | Password            | Role      |
+| --------------------------- | ------------------- | --------- |
+| `admin@sprachpilot.local`   | `ChangeMe!Admin1`   | `admin`   |
 | `learner@sprachpilot.local` | `ChangeMe!Learner1` | `learner` |
 
-Passwords are hashed with argon2id (memory ≥ 19 MiB). Re-running seed updates those rows; it never creates duplicates.
+Passwords are hashed with argon2id (`memoryCost` 19456 KiB, `timeCost` 2, `parallelism` 1) via `src/password.ts`. Re-running seed updates those rows; it never creates duplicates.
+
+`consent_records` stores Terms and Privacy acceptance (policy, version, timestamp, IP hash) captured at registration.
 
 ## Roles and connections
 
-| Role | Used by | Privileges |
-| --- | --- | --- |
-| App (`sprachpilot`) | API, worker | DML on app tables only — **no** superuser / `CREATEDB` |
-| Migrator | `prisma migrate deploy` (K8s Job in SP-063) | DDL + migrate history tables; still not superuser |
+| Role                | Used by                                     | Privileges                                             |
+| ------------------- | ------------------------------------------- | ------------------------------------------------------ |
+| App (`sprachpilot`) | API, worker                                 | DML on app tables only — **no** superuser / `CREATEDB` |
+| Migrator            | `prisma migrate deploy` (K8s Job in SP-063) | DDL + migrate history tables; still not superuser      |
 
 Locally both URLs point at the same compose user. In staging/production set:
 

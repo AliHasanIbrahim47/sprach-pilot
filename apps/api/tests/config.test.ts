@@ -48,6 +48,10 @@ describe("loadConfig", () => {
     expect(serialized).not.toContain("s3-secret-key");
     expect(serialized).not.toContain("smtp-password");
     expect(serialized).not.toContain("jwt-access-secret-value");
+    expect(serialized).not.toContain("ip-hash-secret-value");
+    expect(serialized).not.toContain("internal-api-secret-value");
+    expect(logged.ipHashSecret).toBe("[REDACTED]");
+    expect(logged.internalApiSecret).toBe("[REDACTED]");
     expect(serialized).toContain("[REDACTED]");
     expect(logged.port).toBe(0);
     expect((logged.s3 as { bucket: string }).bucket).toBe("sprachpilot-dev");

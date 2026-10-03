@@ -58,6 +58,20 @@
         "type": "string",
         "enum": ["database", "redis"]
       },
+      "RegisterAcceptedResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["accepted"]
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": ["status", "message"]
+      },
       "ProblemDetails": {
         "type": "object",
         "properties": {
@@ -113,20 +127,6 @@
         },
         "required": ["field", "code", "message"]
       },
-      "RegisterAcceptedResponse": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string",
-            "enum": ["accepted"]
-          },
-          "message": {
-            "type": "string",
-            "maxLength": 500
-          }
-        },
-        "required": ["status", "message"]
-      },
       "RegisterBody": {
         "type": "object",
         "properties": {
@@ -158,6 +158,55 @@
           }
         },
         "required": ["email", "password", "displayName", "acceptedTerms"]
+      },
+      "LoginSuccessResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["authenticated"]
+          },
+          "user": {
+            "$ref": "#/components/schemas/LoginUser"
+          }
+        },
+        "required": ["status", "user"]
+      },
+      "LoginUser": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        },
+        "required": ["id", "displayName"]
+      },
+      "LoginBody": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 320,
+            "format": "email",
+            "description": "Normalized email address",
+            "example": "learner@example.com"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Account password",
+            "example": "ChangeMe!Learner1"
+          }
+        },
+        "required": ["email", "password"]
       }
     },
     "parameters": {}
@@ -218,7 +267,7 @@
       "post": {
         "tags": ["Auth"],
         "summary": "Register with email and password",
-        "description": "Validates registration payload. Full account creation lands in SP-012; valid requests currently return 501.",
+        "description": "Creates an account and asks the caller to verify their email. The response is the same when the email is already registered; that account receives a notice instead of a second user. Passwords are checked against a bundled common-password list.",
         "requestBody": {
           "required": true,
           "content": {
@@ -230,8 +279,22 @@
           }
         },
         "responses": {
+          "202": {
+            "description": "Registration accepted. Check email to verify the account.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterAcceptedResponse"
+                },
+                "example": {
+                  "status": "accepted",
+                  "message": "Check your email to verify your account."
+                }
+              }
+            }
+          },
           "400": {
-            "description": "Validation failed",
+            "description": "Validation failed, including a password that is too common",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -240,18 +303,8 @@
               }
             }
           },
-          "404": {
-            "description": "Not found (shared Problem Details catalogue)",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict (e.g. unique constraint)",
+          "403": {
+            "description": "Registration is disabled",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -269,16 +322,96 @@
                 }
               }
             }
-          },
-          "501": {
-            "description": "Validated but not implemented yet (SP-012)",
+          }
+        }
+      }
+    },
+    "/v1/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Log in with email and password",
+        "description": "Verifies credentials. Wrong email and wrong password return the same error. Session tokens are issued in SP-013. After 5 failures in 15 minutes for an email and IP pair, further attempts return 429.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Credentials matched",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RegisterAcceptedResponse"
+                  "$ref": "#/components/schemas/LoginSuccessResponse"
                 }
               }
             }
+          },
+          "400": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Email or password is incorrect",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many failed attempts for this email and IP",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until another attempt is allowed",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/logout": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Log out",
+        "description": "Ends the current session. Refresh-token revocation arrives with SP-013; until then this responds 204 and clears no token.",
+        "responses": {
+          "204": {
+            "description": "Logged out"
           }
         }
       }

@@ -85,6 +85,10 @@ const apiEnvSchema = z.object({
   LANGUAGETOOL_URL: z.string().url().default("http://localhost:8010"),
 
   FEATURE_REGISTRATION_ENABLED: requiredBooleanSchema(true),
+
+  /** HMAC pepper for client IP hashes. Required; never log the value. */
+  IP_HASH_SECRET: z.string().min(16, "must be at least 16 characters"),
+  INTERNAL_API_SECRET: z.string().optional().transform(emptyToUndefined),
 });
 
 export type ApiConfig = Readonly<{
@@ -131,6 +135,8 @@ export type ApiConfig = Readonly<{
   features: Readonly<{
     registrationEnabled: boolean;
   }>;
+  ipHashSecret: string;
+  internalApiSecret: string | undefined;
 }>;
 
 const SECRET_KEYS = new Set([
@@ -142,6 +148,8 @@ const SECRET_KEYS = new Set([
   "accessSecret",
   "refreshSecret",
   "clientSecret",
+  "ipHashSecret",
+  "internalApiSecret",
 ]);
 
 function deepFreeze<T>(value: T): T {
@@ -210,6 +218,8 @@ function toApiConfig(env: z.infer<typeof apiEnvSchema>): ApiConfig {
     features: {
       registrationEnabled: env.FEATURE_REGISTRATION_ENABLED,
     },
+    ipHashSecret: env.IP_HASH_SECRET,
+    internalApiSecret: env.INTERNAL_API_SECRET,
   });
 }
 
