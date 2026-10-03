@@ -134,14 +134,21 @@ export class ForbiddenError extends AppError {
 }
 
 export class RateLimitedError extends AppError {
-  constructor(detail = "Too many requests", options: Omit<AppErrorOptions, "detail"> = {}) {
+  readonly retryAfterSeconds: number | undefined;
+
+  constructor(
+    detail = "Too many requests",
+    options: Omit<AppErrorOptions, "detail"> & { retryAfterSeconds?: number } = {},
+  ) {
+    const { retryAfterSeconds, ...rest } = options;
     super("rate-limited", 429, "Too Many Requests", {
       detail,
-      ...(options.errors !== undefined ? { errors: options.errors } : {}),
-      ...(options.exposeDetail !== undefined ? { exposeDetail: options.exposeDetail } : {}),
-      ...(options.cause !== undefined ? { cause: options.cause } : {}),
+      ...(rest.errors !== undefined ? { errors: rest.errors } : {}),
+      ...(rest.exposeDetail !== undefined ? { exposeDetail: rest.exposeDetail } : {}),
+      ...(rest.cause !== undefined ? { cause: rest.cause } : {}),
     });
     this.name = "RateLimitedError";
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }
 
