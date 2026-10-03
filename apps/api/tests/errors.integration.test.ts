@@ -15,18 +15,17 @@ import { createContainer } from "../src/container.js";
 import { mapPrismaError } from "../src/infrastructure/prisma-errors.js";
 import { REQUEST_ID_HEADER } from "../src/middleware/request-id.js";
 import { validateQuery } from "../src/middleware/validate.js";
+import { createMemoryLoginThrottle } from "../src/modules/auth/login-throttle.js";
+import { createValidApiEnv } from "./helpers/env.js";
 
 function createTestApp(env: NodeJS.ProcessEnv = {}, registerV1?: (v1: Router) => void) {
-  const config = loadConfig({
-    NODE_ENV: "test",
-    PORT: "0",
-    ...env,
-  });
+  const config = loadConfig(createValidApiEnv({ NODE_ENV: "test", PORT: "0", ...env }));
   const container = createContainer(config, {
     dependencyChecks: [
       { name: "database", check: async () => true },
       { name: "redis", check: async () => true },
     ],
+    auth: { throttle: createMemoryLoginThrottle() },
   });
   return createApp(container, { registerV1 });
 }
