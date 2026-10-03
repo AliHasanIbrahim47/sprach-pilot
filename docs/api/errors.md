@@ -26,7 +26,7 @@ The web app maps `type` codes to translated UI messages via `apiErrorTypeToMessa
 | Forbidden | 403 | `/forbidden` | Authenticated but not allowed |
 | Not Found | 404 | `/not-found` | Missing resource or unmatched route |
 | Conflict | 409 | `/conflict` | Unique constraint / state conflict (also Prisma `P2002`) |
-| Rate Limited | 429 | `/rate-limited` | Client exceeded rate limits |
+| Rate Limited | 429 | `/rate-limited` | Client exceeded rate limits. Login lockout also sets `Retry-After` (seconds). |
 | External Service | 502 | `/external-service` | Upstream AI / mail / storage failure |
 | Internal | 500 | `/internal` | Unexpected error |
 
