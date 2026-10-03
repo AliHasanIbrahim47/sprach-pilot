@@ -2,6 +2,8 @@
 
 Self-hosted German language-learning platform (dialogues, documents → flashcards, Sprachcafé matching).
 
+How to contribute: [`CONTRIBUTING.md`](./CONTRIBUTING.md) · Conduct: [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md) · Decisions: [`docs/adr/`](./docs/adr/README.md)
+
 ## Quick start
 
 ```bash
@@ -76,8 +78,10 @@ packages/
   db/        # Prisma schema, migrations, seed (@sprachpilot/db)
   config/    # Shared tsconfig and ESLint presets
 infra/       # Docker, Kubernetes, CI/CD assets (not a pnpm workspace)
-docs/        # Backlog, ADRs, runbooks
+docs/        # ADRs, API catalogue (backlog is local-only)
 ```
+
+Architecture Decision Records: [`docs/adr/README.md`](./docs/adr/README.md).
 
 `apps/ml-service` (Python, uv) joins the repo in SP-086 and is not part of the pnpm workspace.
 
