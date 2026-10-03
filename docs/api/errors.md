@@ -15,7 +15,7 @@ All error responses use [RFC 9457 Problem Details](https://www.rfc-editor.org/rf
 | `requestId` | no | Correlation id (also in `X-Request-Id`) |
 | `errors` | no | Field-level issues (validation) |
 
-The web app maps `type` codes to translated UI messages (SP-010).
+The web app maps `type` codes to translated UI messages via `apiErrorTypeToMessageKey()` (SP-010).
 
 ## Catalogue
 
