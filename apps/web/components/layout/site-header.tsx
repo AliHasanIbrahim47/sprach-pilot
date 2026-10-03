@@ -6,7 +6,7 @@ import { Link } from "@/i18n/navigation";
 
 const navItems = [
   { href: "/", labelKey: "home" as const },
-  { href: "/sign-in", labelKey: "signIn" as const },
+  { href: "/login", labelKey: "signIn" as const },
   { href: "/dashboard", labelKey: "app" as const },
 ] as const;
 

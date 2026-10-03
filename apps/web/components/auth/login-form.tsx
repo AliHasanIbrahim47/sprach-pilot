@@ -1,6 +1,6 @@
 "use client";
 
-import { type RegisterBody, registerBodySchema } from "@sprachpilot/shared";
+import { loginBodySchema } from "@sprachpilot/shared";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
 
@@ -10,10 +10,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Link } from "@/i18n/navigation";
-import { registerAccount } from "@/lib/auth-actions";
+import { loginAccount } from "@/lib/auth-actions";
 import { type AuthFieldErrors, zodIssuesToFieldErrors } from "@/lib/auth-field-errors";
 
-export function RegisterForm(): React.JSX.Element {
+export function LoginForm(): React.JSX.Element {
   const t = useTranslations("Auth");
   const [fieldErrors, setFieldErrors] = useState<AuthFieldErrors>({});
   const [summary, setSummary] = useState("");
@@ -25,13 +25,10 @@ export function RegisterForm(): React.JSX.Element {
     setSummary("");
     setIsSuccess(false);
 
-    const form = event.currentTarget;
-    const formData = new FormData(form);
-    const parsed = registerBodySchema.safeParse({
+    const formData = new FormData(event.currentTarget);
+    const parsed = loginBodySchema.safeParse({
       email: formData.get("email"),
       password: formData.get("password"),
-      displayName: formData.get("displayName"),
-      acceptedTerms: formData.get("acceptedTerms") === "on",
     });
 
     if (!parsed.success) {
@@ -43,26 +40,21 @@ export function RegisterForm(): React.JSX.Element {
     setFieldErrors({});
     setIsSubmitting(true);
     try {
-      const result = await registerAccount(parsed.data satisfies RegisterBody);
+      const result = await loginAccount(parsed.data);
       if (!result.ok) {
         setFieldErrors(result.fieldErrors ?? {});
-        setSummary(summaryFor(result.code, t));
+        setSummary(summaryFor(result, t));
         return;
       }
       setIsSuccess(true);
-      setSummary(t("verifyEmail"));
-      form.reset();
+      setSummary(t("loginSuccess"));
     } finally {
       setIsSubmitting(false);
     }
   }
 
   const emailError = fieldErrors.email ? fieldMessage(fieldErrors.email, t) : undefined;
-  const nameError = fieldErrors.displayName ? fieldMessage(fieldErrors.displayName, t) : undefined;
   const passwordError = fieldErrors.password ? fieldMessage(fieldErrors.password, t) : undefined;
-  const consentError = fieldErrors.acceptedTerms
-    ? fieldMessage(fieldErrors.acceptedTerms, t)
-    : undefined;
 
   return (
     <form className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
@@ -71,37 +63,19 @@ export function RegisterForm(): React.JSX.Element {
       </p>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="register-email">{t("email")}</Label>
+        <Label htmlFor="login-email">{t("email")}</Label>
         <Input
-          id="register-email"
+          id="login-email"
           name="email"
           type="email"
           autoComplete="email"
           {...(emailError
-            ? { "aria-invalid": true as const, "aria-describedby": "register-email-error" }
+            ? { "aria-invalid": true as const, "aria-describedby": "login-email-error" }
             : {})}
         />
         {emailError ? (
-          <p id="register-email-error" className="text-destructive text-xs">
+          <p id="login-email-error" className="text-destructive text-xs">
             {emailError}
-          </p>
-        ) : null}
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="register-display-name">{t("displayName")}</Label>
-        <Input
-          id="register-display-name"
-          name="displayName"
-          type="text"
-          autoComplete="nickname"
-          {...(nameError
-            ? { "aria-invalid": true as const, "aria-describedby": "register-name-error" }
-            : {})}
-        />
-        {nameError ? (
-          <p id="register-name-error" className="text-destructive text-xs">
-            {nameError}
           </p>
         ) : null}
       </div>
@@ -109,28 +83,20 @@ export function RegisterForm(): React.JSX.Element {
       <PasswordField
         name="password"
         label={t("password")}
-        autoComplete="new-password"
+        autoComplete="current-password"
         showLabel={t("showPassword")}
         hideLabel={t("hidePassword")}
         error={passwordError}
       />
 
-      <div className="flex flex-col gap-1.5">
-        <Label className="flex items-start gap-2 font-normal">
-          <input name="acceptedTerms" type="checkbox" className="mt-0.5 size-4" />
-          <span>{t("acceptedTerms")}</span>
-        </Label>
-        {consentError ? <p className="text-destructive text-xs">{consentError}</p> : null}
-      </div>
-
       <Button type="submit" disabled={isSubmitting} aria-busy={isSubmitting}>
-        {isSubmitting ? t("submitting") : t("submit")}
+        {isSubmitting ? t("submitting") : t("signInSubmit")}
       </Button>
 
       <p className="text-muted-foreground text-sm">
-        {t("haveAccount")}{" "}
-        <Link href="/login" className="text-foreground underline-offset-4 hover:underline">
-          {t("goToSignIn")}
+        {t("needAccount")}{" "}
+        <Link href="/register" className="text-foreground underline-offset-4 hover:underline">
+          {t("goToRegister")}
         </Link>
       </p>
     </form>
@@ -138,10 +104,15 @@ export function RegisterForm(): React.JSX.Element {
 }
 
 function summaryFor(
-  code: "validation" | "unauthorized" | "forbidden" | "rate-limited" | "internal",
-  t: (key: "invalidField" | "registrationDisabled" | "genericError") => string,
+  result: { code: string; retryAfterSeconds?: number },
+  t: ReturnType<typeof useTranslations>,
 ): string {
-  if (code === "forbidden") return t("registrationDisabled");
-  if (code === "validation") return t("invalidField");
+  if (result.code === "unauthorized") return t("invalidCredentials");
+  if (result.code === "rate-limited") {
+    return result.retryAfterSeconds === undefined
+      ? t("tooManyAttemptsLater")
+      : t("tooManyAttempts", { seconds: result.retryAfterSeconds });
+  }
+  if (result.code === "validation") return t("invalidField");
   return t("genericError");
 }
