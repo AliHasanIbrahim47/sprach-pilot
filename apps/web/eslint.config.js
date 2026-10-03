@@ -6,4 +6,13 @@ export default [
     ignores: [".next/**", "next-env.d.ts", "coverage/**"],
   },
   ...nextjsConfig,
+  {
+    files: ["scripts/**/*.{js,mjs,cjs}"],
+    languageOptions: {
+      globals: {
+        console: "readonly",
+        process: "readonly",
+      },
+    },
+  },
 ];
