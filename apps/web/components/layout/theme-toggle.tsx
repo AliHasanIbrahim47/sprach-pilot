@@ -1,12 +1,14 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 
 export function ThemeToggle(): React.JSX.Element {
+  const t = useTranslations("Theme");
   const { resolvedTheme, setTheme } = useTheme();
   const [isMounted, setIsMounted] = useState(false);
 
@@ -16,7 +18,7 @@ export function ThemeToggle(): React.JSX.Element {
 
   if (!isMounted) {
     return (
-      <Button type="button" variant="ghost" size="icon" aria-label="Toggle theme" disabled>
+      <Button type="button" variant="ghost" size="icon" aria-label={t("toggle")} disabled>
         <Sun className="size-4" />
       </Button>
     );
@@ -29,7 +31,7 @@ export function ThemeToggle(): React.JSX.Element {
       type="button"
       variant="ghost"
       size="icon"
-      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      aria-label={isDark ? t("toLight") : t("toDark")}
       onClick={() => {
         setTheme(isDark ? "light" : "dark");
       }}

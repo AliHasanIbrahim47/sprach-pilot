@@ -1,15 +1,18 @@
-import { appConfig } from "@/lib/config";
+import { useTranslations } from "next-intl";
 
 export function SiteFooter(): React.JSX.Element {
+  const t = useTranslations("Footer");
+  const tCommon = useTranslations("Common");
+
   return (
     <footer className="border-border mt-auto border-t">
       <div className="text-muted-foreground mx-auto flex w-full max-w-6xl flex-col gap-2 px-4 py-8 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <p>
-          <span className="font-display text-foreground">{appConfig.name}</span>
+          <span className="font-display text-foreground">{tCommon("appName")}</span>
           {" — "}
-          German for real life.
+          {t("tagline")}
         </p>
-        <p>Self-hosted learning platform.</p>
+        <p>{t("platform")}</p>
       </div>
     </footer>
   );
