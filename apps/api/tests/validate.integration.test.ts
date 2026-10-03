@@ -5,7 +5,22 @@ import { createApp } from "../src/app.js";
 import { loadConfig } from "../src/config.js";
 import { createContainer } from "../src/container.js";
 import { REQUEST_ID_HEADER } from "../src/middleware/request-id.js";
+import { createMemoryUserRepository } from "../src/modules/auth/auth.repository.js";
+import { createMemoryLoginThrottle } from "../src/modules/auth/login-throttle.js";
+import type { PasswordHasher } from "../src/modules/auth/password-hasher.js";
 import { createValidApiEnv } from "./helpers/env.js";
+
+const fakeHasher: PasswordHasher = {
+  async hash(password) {
+    return `hashed:${password}`;
+  },
+  async verify(passwordHash, password) {
+    return passwordHash === `hashed:${password}`;
+  },
+  async dummyHash() {
+    return "hashed:__dummy__";
+  },
+};
 
 function createTestApp(env: NodeJS.ProcessEnv = {}) {
   const config = loadConfig(createValidApiEnv(env));
@@ -14,6 +29,13 @@ function createTestApp(env: NodeJS.ProcessEnv = {}) {
       { name: "database", check: async () => true },
       { name: "redis", check: async () => true },
     ],
+    auth: {
+      users: createMemoryUserRepository(),
+      throttle: createMemoryLoginThrottle(),
+      hasher: fakeHasher,
+      mailer: { async send() {} },
+      clock: () => new Date("2026-10-03T07:00:00.000Z"),
+    },
   });
   return createApp(container);
 }
@@ -49,7 +71,7 @@ describe("validateBody middleware", () => {
       extraEvil: "strip-me",
     });
 
-    expect(response.status).toBe(501);
+    expect(response.status).toBe(202);
     expect(response.body.status).toBe("accepted");
   });
 });

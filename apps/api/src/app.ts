@@ -30,6 +30,7 @@ export function createApp(container: AppContainer, options: CreateAppOptions = {
   v1.use("/auth", container.authRouter);
   options.registerV1?.(v1);
   app.use("/v1", v1);
+  app.use(container.metricsRouter);
 
   if (container.docsRouter) {
     app.use(container.docsRouter);
