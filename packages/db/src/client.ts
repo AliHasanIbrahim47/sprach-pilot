@@ -10,11 +10,7 @@ export interface CreatePrismaClientOptions {
   poolTimeoutSeconds?: number;
 }
 
-function withPoolParams(
-  url: string,
-  connectionLimit: number,
-  poolTimeoutSeconds: number,
-): string {
+function withPoolParams(url: string, connectionLimit: number, poolTimeoutSeconds: number): string {
   const parsed = new URL(url);
 
   if (!parsed.searchParams.has("connection_limit")) {

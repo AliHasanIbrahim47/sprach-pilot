@@ -1,5 +1,6 @@
-import { hash } from "@node-rs/argon2";
 import { PrismaClient, UserRole } from "@prisma/client";
+
+import { hashPassword } from "../src/password.js";
 
 const prisma = new PrismaClient();
 
@@ -37,14 +38,8 @@ const SEED_USERS = [
   },
 ] as const;
 
-const ARGON2_OPTIONS = {
-  memoryCost: 19_456,
-  timeCost: 2,
-  parallelism: 1,
-} as const;
-
 async function upsertSeedUser(seed: (typeof SEED_USERS)[number]): Promise<string> {
-  const passwordHash = await hash(seed.password, ARGON2_OPTIONS);
+  const passwordHash = await hashPassword(seed.password);
 
   const user = await prisma.user.upsert({
     where: { email: seed.email },
