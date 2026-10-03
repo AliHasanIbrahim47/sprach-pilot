@@ -66,7 +66,7 @@ export default async function LandingPage({
         </figure>
         <div className="flex flex-wrap gap-3">
           <Button asChild size="lg">
-            <Link href="/sign-in">{t("getStarted")}</Link>
+            <Link href="/register">{t("getStarted")}</Link>
           </Button>
           <Button asChild variant="outline" size="lg">
             <Link href="/dashboard">{t("openApp")}</Link>
