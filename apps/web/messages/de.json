@@ -1,0 +1,72 @@
+{
+  "Common": {
+    "appName": "SprachPilot",
+    "skipToContent": "Zum Inhalt springen",
+    "loading": "Laden…",
+    "primaryNav": "Hauptnavigation",
+    "language": "Sprache",
+    "switchLanguage": "Sprache wechseln"
+  },
+  "Theme": {
+    "toggle": "Design umschalten",
+    "toLight": "Zum hellen Modus wechseln",
+    "toDark": "Zum dunklen Modus wechseln"
+  },
+  "Nav": {
+    "home": "Start",
+    "signIn": "Anmelden",
+    "app": "App"
+  },
+  "Footer": {
+    "tagline": "Deutsch fürs echte Leben.",
+    "platform": "Selbst gehostete Lernplattform."
+  },
+  "Marketing": {
+    "metaDescription": "Selbst gehostetes Deutschlernen für den Alltag in Deutschland.",
+    "headline": "Lerne Deutsch für Situationen, die wirklich zählen.",
+    "body": "Übe Bürgeramt-Dialoge, verwandle Dokumente in Vokabeldecks und finde ein Sprachcafé — auf einem Stack, den du selbst hostest.",
+    "getStarted": "Loslegen",
+    "openApp": "App öffnen",
+    "sampleDialogueLabel": "Beispieldialog (immer auf Deutsch)"
+  },
+  "Learning": {
+    "sampleDialogue": "Guten Tag, ich hätte gerne einen Termin beim Bürgeramt."
+  },
+  "Auth": {
+    "signInTitle": "Anmelden",
+    "signInBody": "Authentifizierung kommt mit SP-012. Diese Routengruppe ist ein Layout-Platzhalter.",
+    "registerTitle": "Konto erstellen",
+    "registerBody": "Client-Validierung nutzt den gemeinsamen Zod-Vertrag. Persistenz kommt mit SP-012.",
+    "email": "E-Mail",
+    "displayName": "Anzeigename",
+    "password": "Passwort",
+    "acceptedTerms": "Ich akzeptiere die AGB und Datenschutzerklärung",
+    "submit": "Konto erstellen",
+    "validStub": "Sieht gültig aus. API-Registrierung kommt mit SP-012."
+  },
+  "App": {
+    "dashboardTitle": "Dashboard",
+    "dashboardBody": "Platzhalter für die authentifizierte App. Feature-Seiten folgen in späteren Tickets."
+  },
+  "NotFound": {
+    "code": "404",
+    "title": "Seite nicht gefunden",
+    "body": "Diese Route existiert nicht. Zurück zur Startseite.",
+    "backHome": "Zur Startseite"
+  },
+  "Error": {
+    "title": "Etwas ist schiefgelaufen",
+    "body": "Ein unerwarteter Fehler ist aufgetreten. Du kannst es erneut versuchen.",
+    "retry": "Erneut versuchen"
+  },
+  "Errors": {
+    "validation": "Bitte prüfe die markierten Felder.",
+    "unauthorized": "Bitte melde dich an, um fortzufahren.",
+    "forbidden": "Dafür fehlen dir die Rechte.",
+    "not-found": "Diese Ressource wurde nicht gefunden.",
+    "conflict": "Das widerspricht einem bestehenden Eintrag.",
+    "rate-limited": "Zu viele Anfragen. Bitte später erneut versuchen.",
+    "external-service": "Ein abhängiger Dienst ist fehlgeschlagen. Bitte erneut versuchen.",
+    "internal": "Bei uns ist etwas schiefgelaufen."
+  }
+}

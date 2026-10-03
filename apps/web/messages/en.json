@@ -1,0 +1,72 @@
+{
+  "Common": {
+    "appName": "SprachPilot",
+    "skipToContent": "Skip to content",
+    "loading": "Loading…",
+    "primaryNav": "Primary",
+    "language": "Language",
+    "switchLanguage": "Switch language"
+  },
+  "Theme": {
+    "toggle": "Toggle theme",
+    "toLight": "Switch to light mode",
+    "toDark": "Switch to dark mode"
+  },
+  "Nav": {
+    "home": "Home",
+    "signIn": "Sign in",
+    "app": "App"
+  },
+  "Footer": {
+    "tagline": "German for real life.",
+    "platform": "Self-hosted learning platform."
+  },
+  "Marketing": {
+    "metaDescription": "Self-hosted German language learning for everyday life in Germany.",
+    "headline": "Learn German for the situations that actually matter.",
+    "body": "Practice Bürgeramt dialogues, turn documents into vocabulary decks, and find a Sprachcafé — all on a stack you host yourself.",
+    "getStarted": "Get started",
+    "openApp": "Open app",
+    "sampleDialogueLabel": "Sample dialogue (always German)"
+  },
+  "Learning": {
+    "sampleDialogue": "Guten Tag, ich hätte gerne einen Termin beim Bürgeramt."
+  },
+  "Auth": {
+    "signInTitle": "Sign in",
+    "signInBody": "Authentication arrives in SP-012. This route group is a layout placeholder.",
+    "registerTitle": "Create account",
+    "registerBody": "Client validation uses the shared Zod contract. Persistence arrives in SP-012.",
+    "email": "Email",
+    "displayName": "Display name",
+    "password": "Password",
+    "acceptedTerms": "I accept the Terms and Privacy Policy",
+    "submit": "Create account",
+    "validStub": "Looks valid. API registration lands in SP-012."
+  },
+  "App": {
+    "dashboardTitle": "Dashboard",
+    "dashboardBody": "Authenticated app shell placeholder. Feature pages land in later tickets."
+  },
+  "NotFound": {
+    "code": "404",
+    "title": "Page not found",
+    "body": "That route does not exist. Head back to the landing page.",
+    "backHome": "Back home"
+  },
+  "Error": {
+    "title": "Something went wrong",
+    "body": "An unexpected error occurred. You can try again.",
+    "retry": "Try again"
+  },
+  "Errors": {
+    "validation": "Please check the highlighted fields.",
+    "unauthorized": "Please sign in to continue.",
+    "forbidden": "You do not have permission to do that.",
+    "not-found": "We could not find that resource.",
+    "conflict": "That conflicts with an existing record.",
+    "rate-limited": "Too many requests. Please try again later.",
+    "external-service": "A dependent service failed. Please try again.",
+    "internal": "Something went wrong on our side."
+  }
+}

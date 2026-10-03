@@ -1,0 +1,72 @@
+{
+  "Common": {
+    "appName": "SprachPilot",
+    "skipToContent": "İçeriğe atla",
+    "loading": "Yükleniyor…",
+    "primaryNav": "Ana gezinme",
+    "language": "Dil",
+    "switchLanguage": "Dili değiştir"
+  },
+  "Theme": {
+    "toggle": "Temayı değiştir",
+    "toLight": "Açık moda geç",
+    "toDark": "Koyu moda geç"
+  },
+  "Nav": {
+    "home": "Ana sayfa",
+    "signIn": "Giriş yap",
+    "app": "Uygulama"
+  },
+  "Footer": {
+    "tagline": "Gerçek hayat için Almanca.",
+    "platform": "Kendi barındırdığınız öğrenme platformu."
+  },
+  "Marketing": {
+    "metaDescription": "Almanya’daki günlük yaşam için kendi barındırdığınız Almanca öğrenme.",
+    "headline": "Gerçekten önemli durumlar için Almanca öğrenin.",
+    "body": "Bürgeramt diyaloglarını pratik edin, belgeleri kelime destelerine dönüştürün ve bir Sprachcafé bulun — kendi barındırdığınız bir yığında.",
+    "getStarted": "Başla",
+    "openApp": "Uygulamayı aç",
+    "sampleDialogueLabel": "Örnek diyalog (her zaman Almanca)"
+  },
+  "Learning": {
+    "sampleDialogue": "Guten Tag, ich hätte gerne einen Termin beim Bürgeramt."
+  },
+  "Auth": {
+    "signInTitle": "Giriş yap",
+    "signInBody": "Kimlik doğrulama SP-012 ile gelecek. Bu rota grubu bir yerleşim yer tutucusudur.",
+    "registerTitle": "Hesap oluştur",
+    "registerBody": "İstemci doğrulaması paylaşılan Zod sözleşmesini kullanır. Kalıcılık SP-012 ile gelir.",
+    "email": "E-posta",
+    "displayName": "Görünen ad",
+    "password": "Şifre",
+    "acceptedTerms": "Şartları ve Gizlilik Politikasını kabul ediyorum",
+    "submit": "Hesap oluştur",
+    "validStub": "Geçerli görünüyor. API kaydı SP-012 ile gelecek."
+  },
+  "App": {
+    "dashboardTitle": "Kontrol paneli",
+    "dashboardBody": "Kimliği doğrulanmış uygulama kabuğu yer tutucusu. Özellik sayfaları sonraki işlerde gelecek."
+  },
+  "NotFound": {
+    "code": "404",
+    "title": "Sayfa bulunamadı",
+    "body": "Bu rota yok. Ana sayfaya dönün.",
+    "backHome": "Ana sayfaya dön"
+  },
+  "Error": {
+    "title": "Bir şeyler ters gitti",
+    "body": "Beklenmeyen bir hata oluştu. Tekrar deneyebilirsiniz.",
+    "retry": "Yeniden dene"
+  },
+  "Errors": {
+    "validation": "Lütfen işaretli alanları kontrol edin.",
+    "unauthorized": "Devam etmek için giriş yapın.",
+    "forbidden": "Bunu yapmaya yetkiniz yok.",
+    "not-found": "Bu kaynak bulunamadı.",
+    "conflict": "Mevcut bir kayıtla çakışıyor.",
+    "rate-limited": "Çok fazla istek. Lütfen sonra tekrar deneyin.",
+    "external-service": "Bağımlı bir hizmet başarısız oldu. Tekrar deneyin.",
+    "internal": "Bizim tarafımızda bir hata oluştu."
+  }
+}

@@ -61,6 +61,16 @@ export const rootConfig = [
   ...withoutIgnores(nextjsConfig).filter(
     (entry) => isProcessEnvRuleEntry(entry) && entry.rules["no-restricted-properties"] === "off",
   ),
+  // Node scripts (lint-staged runs from repo root)
+  {
+    files: ["**/scripts/**/*.{js,mjs,cjs}"],
+    languageOptions: {
+      globals: {
+        console: "readonly",
+        process: "readonly",
+      },
+    },
+  },
 ];
 
 export default rootConfig;

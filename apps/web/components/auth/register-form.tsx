@@ -1,6 +1,7 @@
 "use client";
 
 import { type RegisterBody, registerBodySchema } from "@sprachpilot/shared";
+import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button";
 type FieldErrors = Partial<Record<keyof RegisterBody | "_root", string>>;
 
 export function RegisterForm(): React.JSX.Element {
+  const t = useTranslations("Auth");
   const [errors, setErrors] = useState<FieldErrors>({});
   const [message, setMessage] = useState<string | null>(null);
 
@@ -34,13 +36,13 @@ export function RegisterForm(): React.JSX.Element {
     }
 
     setErrors({});
-    setMessage("Looks valid. API registration lands in SP-012.");
+    setMessage(t("validStub"));
   }
 
   return (
     <form className="flex max-w-md flex-col gap-4" onSubmit={handleSubmit} noValidate>
       <label className="flex flex-col gap-1 text-sm">
-        <span>Email</span>
+        <span>{t("email")}</span>
         <input
           name="email"
           type="email"
@@ -51,7 +53,7 @@ export function RegisterForm(): React.JSX.Element {
       </label>
 
       <label className="flex flex-col gap-1 text-sm">
-        <span>Display name</span>
+        <span>{t("displayName")}</span>
         <input
           name="displayName"
           type="text"
@@ -64,7 +66,7 @@ export function RegisterForm(): React.JSX.Element {
       </label>
 
       <label className="flex flex-col gap-1 text-sm">
-        <span>Password</span>
+        <span>{t("password")}</span>
         <input
           name="password"
           type="password"
@@ -78,13 +80,13 @@ export function RegisterForm(): React.JSX.Element {
 
       <label className="flex items-center gap-2 text-sm">
         <input name="acceptedTerms" type="checkbox" />
-        <span>I accept the Terms and Privacy Policy</span>
+        <span>{t("acceptedTerms")}</span>
       </label>
       {errors.acceptedTerms ? (
         <span className="text-destructive text-xs">{errors.acceptedTerms}</span>
       ) : null}
 
-      <Button type="submit">Create account</Button>
+      <Button type="submit">{t("submit")}</Button>
       {message ? <p className="text-muted-foreground text-sm">{message}</p> : null}
     </form>
   );
