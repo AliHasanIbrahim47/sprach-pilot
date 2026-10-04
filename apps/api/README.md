@@ -11,16 +11,20 @@ pnpm --filter @sprachpilot/api dev
 
 Default listen address: `http://localhost:3001`
 
-| Endpoint                 | Purpose                                                          |
-| ------------------------ | ---------------------------------------------------------------- |
-| `GET /healthz`           | Liveness — process is up                                         |
-| `GET /readyz`            | Readiness — PostgreSQL and Redis reachable                       |
-| `POST /v1/auth/register` | Create an account (identical response if the email exists)       |
-| `POST /v1/auth/login`    | Verify email and password                                        |
-| `POST /v1/auth/logout`   | End the session (token revocation is SP-013)                     |
-| `GET /metrics`           | Prometheus counters `auth_login_total` and `auth_register_total` |
-| `GET /openapi.json`      | OpenAPI 3.1 document (non-production, or `ENABLE_API_DOCS`)      |
-| `GET /docs`              | Scalar API reference UI                                          |
+| Endpoint                       | Purpose                                                                                   |
+| ------------------------------ | ----------------------------------------------------------------------------------------- |
+| `GET /healthz`                 | Liveness — process is up                                                                  |
+| `GET /readyz`                  | Readiness — PostgreSQL and Redis reachable                                                |
+| `POST /v1/auth/register`       | Create an account (identical response if the email exists)                                |
+| `POST /v1/auth/login`          | Verify email and password                                                                 |
+| `POST /v1/auth/logout`         | Revoke the current session and clear auth cookies                                         |
+| `POST /v1/auth/refresh`        | Rotate the refresh token; reuse revokes the session family                                |
+| `GET /v1/auth/sessions`        | List the caller's active device sessions                                                  |
+| `DELETE /v1/auth/sessions/:id` | Revoke one device session                                                                 |
+| `GET /.well-known/jwks.json`   | Public Ed25519 keys for access-token verification                                         |
+| `GET /metrics`                 | Prometheus counters, including `auth_refresh_total` and `auth_token_reuse_detected_total` |
+| `GET /openapi.json`            | OpenAPI 3.1 document (non-production, or `ENABLE_API_DOCS`)                               |
+| `GET /docs`                    | Scalar API reference UI                                                                   |
 
 Config is validated with Zod at startup (see [`.env.example`](./.env.example)). `DATABASE_URL`, `REDIS_URL`, S3, SMTP, and `IP_HASH_SECRET` are required. Local `apps/api/.env` is loaded automatically; process env still wins.
 
@@ -85,4 +89,8 @@ Passwords are hashed with argon2id in `packages/db/src/password.ts`:
 
 Registration stores two consent rows (`terms`, `privacy`), version `2026-10-03`, the acceptance time, and an HMAC-SHA256 of the client IP (`IP_HASH_SECRET`). Raw IPs and passwords are not written to application logs.
 
-A bundled NCSC common-password list (length ≥ 10) rejects passwords such as `password123` without calling an external API. Login failures share one message. After 5 failures in 15 minutes for an email and IP pair, the next attempt returns **429** with `Retry-After`. The handler does not sleep the request. Session tokens are SP-013; logout currently returns 204.
+A bundled NCSC common-password list (length ≥ 10) rejects passwords such as `password123` without calling an external API. Login failures share one message. After 5 failures in 15 minutes for an email and IP pair, the next attempt returns **429** with `Retry-After`. The handler does not sleep the request.
+
+## Sessions (SP-013)
+
+Login, refresh, and logout set `sp_access` (EdDSA JWT, 15 minutes) and `sp_refresh` (opaque, 30 days) as `httpOnly`, `Secure`, `SameSite=Lax` cookies. The JSON body never contains either token. Refresh tokens are stored as an HMAC (`JWT_REFRESH_PEPPER`). Presenting a refresh token that was already rotated returns **401**, revokes that session family, and increments `auth_token_reuse_detected_total`. Access-token checks use the JWKS public key and do not hit the database. See [`docs/security/session-tokens.md`](../../docs/security/session-tokens.md).

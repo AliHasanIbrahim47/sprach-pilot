@@ -60,6 +60,7 @@ model User {
   profile        Profile?
   auditLogs      AuditLog[]      @relation("AuditActor")
   consentRecords ConsentRecord[]
+  sessions       Session[]
 
   // Filter: active users by role; soft-delete exclusion uses deleted_at IS NULL
   @@index([role], map: "users_role_idx")
@@ -127,6 +128,45 @@ model ConsentRecord {
 
   @@index([userId], map: "consent_records_user_id_idx")
   @@map("consent_records")
+}
+
+/// Refresh-token session (SP-013).
+/// The live row for a device has `rotated_at` and `revoked_at` null.
+/// `family_id` stays stable across rotations and is the access-token `sid`.
+/// Presenting a row that already has `rotated_at` revokes every row in that family.
+model Session {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  userId String @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  familyId String @map("family_id") @db.Uuid
+
+  /// HMAC-SHA256 of the refresh token. The raw token is never stored.
+  refreshTokenHash String @unique @map("refresh_token_hash")
+
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(3)
+
+  /// logout | revoked | reuse
+  revokedReason String? @map("revoked_reason")
+
+  /// Set when this refresh token was replaced. A later presentation is reuse.
+  rotatedAt DateTime? @map("rotated_at") @db.Timestamptz(3)
+
+  /// @pii — truncated User-Agent for the device list
+  userAgent String? @map("user_agent") @db.VarChar(256)
+
+  /// @pii — HMAC of the client IP captured when the session was opened
+  ipHash String? @map("ip_hash")
+
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  lastUsedAt DateTime @map("last_used_at") @db.Timestamptz(3)
+
+  @@index([userId, rotatedAt], map: "sessions_user_id_rotated_at_idx")
+  @@index([familyId], map: "sessions_family_id_idx")
+  @@index([expiresAt], map: "sessions_expires_at_idx")
+  @@map("sessions")
 }
 
 /// Immutable admin-action trail. Soft delete is intentionally omitted.

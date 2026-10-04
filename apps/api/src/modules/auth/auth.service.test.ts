@@ -1,5 +1,8 @@
+import { generateKeyPairSync } from "node:crypto";
+
 import {
   AUTH_COPY,
+  NotFoundError,
   RateLimitedError,
   UnauthorizedError,
   ValidationError,
@@ -17,6 +20,21 @@ import { createMemoryLoginThrottle } from "./login-throttle.js";
 import type { OutboundMail } from "./mailer.js";
 import { createAuthMetrics } from "./metrics.js";
 import type { PasswordHasher } from "./password-hasher.js";
+import { createMemorySessionRepository } from "./session.repository.js";
+import { createTokenService } from "./token.service.js";
+
+const signingKeys = generateKeyPairSync("ed25519");
+const tokenService = createTokenService({
+  activeKid: "unit-test",
+  privateKeyPem: signingKeys.privateKey.export({ type: "pkcs8", format: "pem" }).toString(),
+  publicKeys: [
+    {
+      kid: "unit-test",
+      pem: signingKeys.publicKey.export({ type: "spki", format: "pem" }).toString(),
+    },
+  ],
+  refreshPepper: "unit-test-refresh-pepper",
+});
 
 const SECRET = "test-ip-hash-secret";
 const NOW = new Date("2026-10-03T07:00:00.000Z");
@@ -56,8 +74,11 @@ function createHarness(overrides: Partial<AuthServiceDependencies> = {}) {
     },
   };
   const metrics = createAuthMetrics();
+  const sessions = createMemorySessionRepository();
   const dependencies: AuthServiceDependencies = {
     users,
+    sessions,
+    tokens: tokenService,
     throttle: createMemoryLoginThrottle(),
     mailer: {
       async send(message) {
@@ -73,7 +94,7 @@ function createHarness(overrides: Partial<AuthServiceDependencies> = {}) {
     ...overrides,
   };
   const service = createAuthService(dependencies);
-  return { service, sent, logs, metrics, memory: users };
+  return { service, sent, logs, metrics, memory: users, sessions };
 }
 
 describe("auth service", () => {
@@ -229,5 +250,70 @@ describe("auth service", () => {
         { ip: IP },
       ),
     ).rejects.toBeInstanceOf(UnauthorizedError);
+  });
+
+  it("rotates a refresh token and revokes the family when the old token is reused", async () => {
+    let now = new Date();
+    const { service, logs, metrics, sessions } = createHarness({ clock: () => now });
+    await service.register(validRegistration, { ip: IP });
+    const login = await service.login(
+      { email: validRegistration.email, password: validRegistration.password },
+      { ip: IP, userAgent: "DeviceA" },
+    );
+
+    now = new Date(now.getTime() + 1000);
+    const rotated = await service.refresh(login.credentials.refreshToken);
+    expect(rotated.refreshToken).not.toBe(login.credentials.refreshToken);
+    expect(rotated.accessToken).not.toBe(login.credentials.accessToken);
+
+    const claims = await tokenService.verifyAccessToken(rotated.accessToken);
+    expect(claims.sub).toBe(login.user.id);
+    expect(claims.role).toBe("learner");
+    expect(claims.sid).toBeTruthy();
+    expect(logs.join("\n")).not.toContain(login.credentials.refreshToken);
+    expect(logs.join("\n")).not.toContain(rotated.refreshToken);
+
+    await expect(service.refresh(login.credentials.refreshToken)).rejects.toBeInstanceOf(
+      UnauthorizedError,
+    );
+    await expect(service.refresh(rotated.refreshToken)).rejects.toBeInstanceOf(UnauthorizedError);
+
+    expect(metrics.renderPrometheus()).toContain('auth_refresh_total{result="reuse"} 1');
+    expect(metrics.renderPrometheus()).toContain("auth_token_reuse_detected_total 1");
+    expect(sessions.records().every((row) => row.revokedReason === "reuse" || row.revokedAt)).toBe(
+      true,
+    );
+    expect(sessions.records().every((row) => row.revokedAt !== null)).toBe(true);
+  });
+
+  it("lists active sessions and revokes one device without affecting the other", async () => {
+    const { service } = createHarness({ clock: () => new Date() });
+    await service.register(validRegistration, { ip: IP });
+    const deviceA = await service.login(
+      { email: validRegistration.email, password: validRegistration.password },
+      { ip: IP, userAgent: "DeviceA" },
+    );
+    const deviceB = await service.login(
+      { email: validRegistration.email, password: validRegistration.password },
+      { ip: IP, userAgent: "DeviceB" },
+    );
+
+    const claimsA = await tokenService.verifyAccessToken(deviceA.credentials.accessToken);
+    const claimsB = await tokenService.verifyAccessToken(deviceB.credentials.accessToken);
+    const listed = await service.listSessions(claimsA.sub, claimsA.sid);
+    expect(listed.sessions).toHaveLength(2);
+    expect(listed.sessions.find((session) => session.id === claimsA.sid)?.current).toBe(true);
+    expect(listed.sessions.find((session) => session.id === claimsB.sid)?.current).toBe(false);
+
+    await service.revokeSession(claimsA.sub, claimsB.sid);
+    await expect(service.refresh(deviceB.credentials.refreshToken)).rejects.toBeInstanceOf(
+      UnauthorizedError,
+    );
+    await expect(service.refresh(deviceA.credentials.refreshToken)).resolves.toMatchObject({
+      accessMaxAgeSeconds: 900,
+    });
+    await expect(service.revokeSession(claimsA.sub, "missing-session")).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
   });
 });

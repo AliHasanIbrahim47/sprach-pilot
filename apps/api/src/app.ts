@@ -21,6 +21,7 @@ export function createApp(container: AppContainer, options: CreateAppOptions = {
   app.use(compression());
   app.use(express.json({ limit: container.config.jsonBodyLimit }));
   app.use(container.healthRouter);
+  app.use(container.jwksRouter);
 
   const v1 = Router();
   v1.use((_req, res, next) => {

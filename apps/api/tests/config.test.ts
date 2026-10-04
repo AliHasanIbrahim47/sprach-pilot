@@ -41,13 +41,16 @@ describe("loadConfig", () => {
     expect((logged.s3 as { secretAccessKey: string }).secretAccessKey).toBe("[REDACTED]");
     expect((logged.s3 as { accessKeyId: string }).accessKeyId).toBe("[REDACTED]");
     expect((logged.smtp as { pass: string }).pass).toBe("[REDACTED]");
-    expect((logged.jwt as { accessSecret: string }).accessSecret).toBe("[REDACTED]");
+    expect((logged.jwt as { privateKeyPem: string }).privateKeyPem).toBe("[REDACTED]");
+    expect((logged.jwt as { refreshPepper: string }).refreshPepper).toBe("[REDACTED]");
+    expect((logged.jwt as { activeKid: string }).activeKid).toBe("test-key");
 
     expect(serialized).not.toContain("secret@localhost");
     expect(serialized).not.toContain("redis-secret");
     expect(serialized).not.toContain("s3-secret-key");
     expect(serialized).not.toContain("smtp-password");
-    expect(serialized).not.toContain("jwt-access-secret-value");
+    expect(serialized).not.toContain("MC4CAQAwBQYDK2VwBCIEILeSL");
+    expect(serialized).not.toContain("jwt-refresh-pepper-value");
     expect(serialized).not.toContain("ip-hash-secret-value");
     expect(serialized).not.toContain("internal-api-secret-value");
     expect(logged.ipHashSecret).toBe("[REDACTED]");

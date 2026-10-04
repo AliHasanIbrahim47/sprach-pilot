@@ -1,4 +1,4 @@
-import { AUTH_COPY } from "@sprachpilot/shared";
+import { ACCESS_TOKEN_COOKIE, AUTH_COPY, REFRESH_TOKEN_COOKIE } from "@sprachpilot/shared";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
 
@@ -11,6 +11,7 @@ import { createMemoryLoginThrottle } from "../src/modules/auth/login-throttle.js
 import type { OutboundMail } from "../src/modules/auth/mailer.js";
 import { createAuthMetrics } from "../src/modules/auth/metrics.js";
 import type { PasswordHasher } from "../src/modules/auth/password-hasher.js";
+import { createMemorySessionRepository } from "../src/modules/auth/session.repository.js";
 import { createValidApiEnv } from "./helpers/env.js";
 
 const IP_HASH_SECRET = "integration-ip-hash-secret";
@@ -29,16 +30,17 @@ function createFakeHasher(): PasswordHasher {
   };
 }
 
-function createAuthApp(env: NodeJS.ProcessEnv = {}) {
+function createAuthApp(env: NodeJS.ProcessEnv = {}, options: { clock?: () => Date } = {}) {
   const users = createMemoryUserRepository();
   const sent: OutboundMail[] = [];
   const metrics = createAuthMetrics();
   const auth: AuthOverrides = {
     users,
+    sessions: createMemorySessionRepository(),
     throttle: createMemoryLoginThrottle(),
     metrics,
     hasher: createFakeHasher(),
-    clock: () => new Date("2026-10-03T07:00:00.000Z"),
+    clock: options.clock ?? (() => new Date("2026-10-03T07:00:00.000Z")),
     mailer: {
       async send(message) {
         sent.push(message);
@@ -183,5 +185,181 @@ describe("auth routes", () => {
 
     expect(response.status).toBe(403);
     expect(users.records()).toHaveLength(0);
+  });
+});
+
+function readSetCookies(headers: request.Response["headers"]): string[] {
+  const raw = headers["set-cookie"];
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === "string") return [raw];
+  return [];
+}
+
+function cookieValue(setCookies: readonly string[], name: string): string | undefined {
+  const header = setCookies.find((cookie) => cookie.startsWith(`${name}=`));
+  return header?.split(";")[0]?.slice(name.length + 1);
+}
+
+function decodeAccessPayload(token: string): Record<string, unknown> {
+  const payload = token.split(".")[1];
+  if (!payload) throw new Error("missing access token payload");
+  return JSON.parse(Buffer.from(payload, "base64url").toString()) as Record<string, unknown>;
+}
+
+describe("session cookies", () => {
+  const currentClock = () => new Date();
+
+  it("sets httpOnly cookies on login and keeps tokens out of the JSON body", async () => {
+    const { app } = createAuthApp({}, { clock: currentClock });
+    await request(app).post("/v1/auth/register").send(validBody);
+
+    const response = await request(app)
+      .post("/v1/auth/login")
+      .set("User-Agent", "DeviceA")
+      .send({ email: validBody.email, password: validBody.password });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      status: "authenticated",
+      user: { id: expect.any(String), displayName: "Ada" },
+    });
+    expect(response.body.accessToken).toBeUndefined();
+    expect(response.body.refreshToken).toBeUndefined();
+
+    const cookies = readSetCookies(response.headers);
+    const serialized = cookies.join("\n");
+    expect(serialized).toContain("HttpOnly");
+    expect(serialized).toContain("Secure");
+    expect(serialized).toContain("SameSite=Lax");
+    expect(serialized).toContain("Max-Age=900");
+    expect(serialized).toContain("Max-Age=2592000");
+
+    const accessToken = cookieValue(cookies, ACCESS_TOKEN_COOKIE);
+    expect(accessToken).toBeTruthy();
+    expect(Object.keys(decodeAccessPayload(accessToken ?? "")).sort()).toEqual([
+      "exp",
+      "iat",
+      "role",
+      "sid",
+      "sub",
+    ]);
+    expect(decodeAccessPayload(accessToken ?? "")).not.toHaveProperty("email");
+  });
+
+  it("rotates a refresh token and revokes the family when that token is presented again", async () => {
+    const { app } = createAuthApp({}, { clock: currentClock });
+    await request(app).post("/v1/auth/register").send(validBody);
+    const login = await request(app)
+      .post("/v1/auth/login")
+      .send({ email: validBody.email, password: validBody.password });
+    const loginCookies = readSetCookies(login.headers);
+    const refreshToken = cookieValue(loginCookies, REFRESH_TOKEN_COOKIE);
+    expect(refreshToken).toBeTruthy();
+
+    const rotated = await request(app)
+      .post("/v1/auth/refresh")
+      .set("Cookie", `${REFRESH_TOKEN_COOKIE}=${refreshToken}`);
+    expect(rotated.status).toBe(200);
+    expect(rotated.body).toEqual({ status: "refreshed" });
+    const nextRefresh = cookieValue(readSetCookies(rotated.headers), REFRESH_TOKEN_COOKIE);
+    expect(nextRefresh).toBeTruthy();
+    expect(nextRefresh).not.toBe(refreshToken);
+
+    const reused = await request(app)
+      .post("/v1/auth/refresh")
+      .set("Cookie", `${REFRESH_TOKEN_COOKIE}=${refreshToken}`);
+    expect(reused.status).toBe(401);
+
+    const afterReuse = await request(app)
+      .post("/v1/auth/refresh")
+      .set("Cookie", `${REFRESH_TOKEN_COOKIE}=${nextRefresh}`);
+    expect(afterReuse.status).toBe(401);
+
+    const metrics = await request(app).get("/metrics");
+    expect(metrics.text).toContain('auth_refresh_total{result="reuse"} 1');
+    expect(metrics.text).toContain("auth_token_reuse_detected_total 1");
+  });
+
+  it("revokes one device so its next refresh fails while the other device stays signed in", async () => {
+    const { app } = createAuthApp({}, { clock: currentClock });
+    await request(app).post("/v1/auth/register").send(validBody);
+
+    const deviceA = await request(app)
+      .post("/v1/auth/login")
+      .set("User-Agent", "DeviceA")
+      .send({ email: validBody.email, password: validBody.password });
+    const deviceB = await request(app)
+      .post("/v1/auth/login")
+      .set("User-Agent", "DeviceB")
+      .send({ email: validBody.email, password: validBody.password });
+
+    const accessA = cookieValue(readSetCookies(deviceA.headers), ACCESS_TOKEN_COOKIE);
+    const refreshA = cookieValue(readSetCookies(deviceA.headers), REFRESH_TOKEN_COOKIE);
+    const refreshB = cookieValue(readSetCookies(deviceB.headers), REFRESH_TOKEN_COOKIE);
+    const sidB = decodeAccessPayload(
+      cookieValue(readSetCookies(deviceB.headers), ACCESS_TOKEN_COOKIE) ?? "",
+    ).sid;
+    expect(typeof sidB).toBe("string");
+
+    const listed = await request(app)
+      .get("/v1/auth/sessions")
+      .set("Cookie", `${ACCESS_TOKEN_COOKIE}=${accessA}`);
+    expect(listed.status).toBe(200);
+    expect(listed.body.sessions).toHaveLength(2);
+
+    const revoked = await request(app)
+      .delete(`/v1/auth/sessions/${sidB}`)
+      .set("Cookie", `${ACCESS_TOKEN_COOKIE}=${accessA}`);
+    expect(revoked.status).toBe(204);
+
+    const deviceBRefresh = await request(app)
+      .post("/v1/auth/refresh")
+      .set("Cookie", `${REFRESH_TOKEN_COOKIE}=${refreshB}`);
+    expect(deviceBRefresh.status).toBe(401);
+
+    const deviceARefresh = await request(app)
+      .post("/v1/auth/refresh")
+      .set("Cookie", `${REFRESH_TOKEN_COOKIE}=${refreshA}`);
+    expect(deviceARefresh.status).toBe(200);
+  });
+
+  it("clears cookies and revokes the session on logout", async () => {
+    const { app } = createAuthApp({}, { clock: currentClock });
+    await request(app).post("/v1/auth/register").send(validBody);
+    const login = await request(app)
+      .post("/v1/auth/login")
+      .send({ email: validBody.email, password: validBody.password });
+    const cookies = readSetCookies(login.headers);
+    const accessToken = cookieValue(cookies, ACCESS_TOKEN_COOKIE);
+    const refreshToken = cookieValue(cookies, REFRESH_TOKEN_COOKIE);
+
+    const logout = await request(app)
+      .post("/v1/auth/logout")
+      .set(
+        "Cookie",
+        `${ACCESS_TOKEN_COOKIE}=${accessToken}; ${REFRESH_TOKEN_COOKIE}=${refreshToken}`,
+      );
+    expect(logout.status).toBe(204);
+    const cleared = readSetCookies(logout.headers).join("\n");
+    expect(cleared).toContain(`${ACCESS_TOKEN_COOKIE}=;`);
+    expect(cleared).toContain(`${REFRESH_TOKEN_COOKIE}=;`);
+    expect(cleared).toContain("Max-Age=0");
+
+    const refresh = await request(app)
+      .post("/v1/auth/refresh")
+      .set("Cookie", `${REFRESH_TOKEN_COOKIE}=${refreshToken}`);
+    expect(refresh.status).toBe(401);
+  });
+
+  it("publishes the public JWKS without private key material", async () => {
+    const { app } = createAuthApp({}, { clock: currentClock });
+    const response = await request(app).get("/.well-known/jwks.json");
+
+    expect(response.status).toBe(200);
+    expect(response.body.keys).toEqual([
+      expect.objectContaining({ kid: "test-key", alg: "EdDSA", crv: "Ed25519", kty: "OKP" }),
+    ]);
+    expect(JSON.stringify(response.body)).not.toContain("PRIVATE");
+    expect(JSON.stringify(response.body)).not.toContain("MC4CAQAwBQYDK2VwBCIEILeSL");
   });
 });

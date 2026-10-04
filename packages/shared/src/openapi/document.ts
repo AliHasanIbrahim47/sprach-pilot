@@ -1,8 +1,10 @@
 import { OpenApiGeneratorV31, OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
+import { z } from "zod";
 
 import { loginBodySchema, loginSuccessResponseSchema } from "../auth/login.js";
 import { AUTH_COPY } from "../auth/messages.js";
 import { registerAcceptedResponseSchema, registerBodySchema } from "../auth/register.js";
+import { refreshSuccessResponseSchema, sessionListResponseSchema } from "../auth/sessions.js";
 import { problemDetailsSchema } from "../errors/problem-details.js";
 import { livenessResponseSchema, readinessResponseSchema } from "../health.js";
 
@@ -114,7 +116,7 @@ openApiRegistry.registerPath({
   tags: ["Auth"],
   summary: "Log in with email and password",
   description:
-    "Verifies credentials. Wrong email and wrong password return the same error. Session tokens are issued in SP-013. After 5 failures in 15 minutes for an email and IP pair, further attempts return 429.",
+    "Verifies credentials. Wrong email and wrong password return the same error. A successful login sets httpOnly access and refresh cookies and does not return token strings. After 5 failures in 15 minutes for an email and IP pair, further attempts return 429.",
   request: {
     body: {
       content: {
@@ -162,10 +164,111 @@ openApiRegistry.registerPath({
   tags: ["Auth"],
   summary: "Log out",
   description:
-    "Ends the current session. Refresh-token revocation arrives with SP-013; until then this responds 204 and clears no token.",
+    "Revokes the current session family and clears the access and refresh cookies. The response is 204 even when no session cookie was sent.",
   responses: {
     204: {
       description: "Logged out",
+    },
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "post",
+  path: "/v1/auth/refresh",
+  tags: ["Auth"],
+  summary: "Rotate the refresh token",
+  description:
+    "Reads the refresh cookie, issues a new access token and refresh token, and invalidates the presented refresh token. Presenting a refresh token that was already rotated revokes the whole session family and returns 401.",
+  responses: {
+    200: {
+      description: "Cookies rotated. The body does not contain token strings.",
+      content: {
+        "application/json": {
+          schema: refreshSuccessResponseSchema,
+          example: { status: "refreshed" },
+        },
+      },
+    },
+    401: {
+      description: "Missing, expired, revoked, or reused refresh token",
+      content: problemResponse.content,
+    },
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "get",
+  path: "/v1/auth/sessions",
+  tags: ["Auth"],
+  summary: "List active sessions",
+  description: "Returns the caller's live device sessions. Requires a valid access-token cookie.",
+  responses: {
+    200: {
+      description: "Active sessions",
+      content: {
+        "application/json": {
+          schema: sessionListResponseSchema,
+        },
+      },
+    },
+    401: {
+      description: "Missing or expired access token",
+      content: problemResponse.content,
+    },
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "delete",
+  path: "/v1/auth/sessions/{id}",
+  tags: ["Auth"],
+  summary: "Revoke a session",
+  description:
+    "Revokes one device session family. The other device is rejected at its next refresh. Requires a valid access-token cookie.",
+  request: {
+    params: z.object({
+      id: z.string().min(1).max(64).meta({ description: "Session family id" }),
+    }),
+  },
+  responses: {
+    204: {
+      description: "Session revoked",
+    },
+    401: {
+      description: "Missing or expired access token",
+      content: problemResponse.content,
+    },
+    404: {
+      description: "No session with that id belongs to the caller",
+      content: problemResponse.content,
+    },
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "get",
+  path: "/.well-known/jwks.json",
+  tags: ["Auth"],
+  summary: "JSON Web Key Set",
+  description:
+    "Public Ed25519 keys used to verify access tokens. Multiple keys can be published during rotation; each access token carries a kid.",
+  responses: {
+    200: {
+      description: "Public keys",
+      content: {
+        "application/json": {
+          schema: {
+            type: "object",
+            required: ["keys"],
+            properties: {
+              keys: {
+                type: "array",
+                items: { type: "object", additionalProperties: true },
+              },
+            },
+          },
+        },
+      },
     },
   },
 });

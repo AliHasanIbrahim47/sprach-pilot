@@ -62,11 +62,14 @@
     "haveAccount": "Already have an account?",
     "needAccount": "Need an account?",
     "goToSignIn": "Sign in",
-    "goToRegister": "Create account"
+    "goToRegister": "Create account",
+    "signOut": "Sign out"
   },
   "App": {
     "dashboardTitle": "Dashboard",
-    "dashboardBody": "Authenticated app shell placeholder. Feature pages land in later tickets."
+    "dashboardBody": "Authenticated app shell placeholder. Feature pages land in later tickets.",
+    "decksTitle": "Decks",
+    "decksBody": "Your decks will show up here."
   },
   "NotFound": {
     "code": "404",

@@ -18,11 +18,18 @@ export function createHealthStatus(service: WorkspaceName): HealthStatus {
   };
 }
 
+export { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from "./auth/cookies.js";
 export type { LoginBody, LoginSuccessResponse } from "./auth/login.js";
 export { loginBodySchema, loginSuccessResponseSchema } from "./auth/login.js";
 export { AUTH_COPY } from "./auth/messages.js";
 export type { RegisterAcceptedResponse, RegisterBody } from "./auth/register.js";
 export { registerAcceptedResponseSchema, registerBodySchema } from "./auth/register.js";
+export type { AuthSession, RefreshSuccessResponse, SessionListResponse } from "./auth/sessions.js";
+export {
+  authSessionSchema,
+  refreshSuccessResponseSchema,
+  sessionListResponseSchema,
+} from "./auth/sessions.js";
 export type { AppErrorCode, AppErrorOptions } from "./errors/app-error.js";
 export {
   AppError,

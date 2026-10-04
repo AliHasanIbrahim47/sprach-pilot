@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 
 import { serverConfig } from "./server-config";
+import { applyUpstreamAuthCookies } from "./upstream-cookies";
 
 export class ApiClientError extends Error {
   readonly status: number;
@@ -25,6 +26,8 @@ export interface ApiFetchOptions extends Omit<RequestInit, "headers"> {
   headers?: HeadersInit;
   /** When false, do not forward the incoming request cookies. Default true on the server. */
   forwardCookies?: boolean;
+  /** Copy httpOnly auth cookies from the API response onto this Next.js response. */
+  applyAuthCookies?: boolean;
 }
 
 /**
@@ -32,7 +35,7 @@ export interface ApiFetchOptions extends Omit<RequestInit, "headers"> {
  * Prefer calling from Server Components, Route Handlers, or Server Actions.
  */
 export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): Promise<T> {
-  const { forwardCookies = true, ...init } = options;
+  const { forwardCookies = true, applyAuthCookies = false, ...init } = options;
   const headers = new Headers(init.headers);
 
   if (!headers.has("accept")) {
@@ -60,6 +63,12 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
 
   const contentType = response.headers.get("content-type") ?? "";
   const body = contentType.includes("json") ? await response.json() : await response.text();
+
+  if (applyAuthCookies) {
+    const setCookies =
+      typeof response.headers.getSetCookie === "function" ? response.headers.getSetCookie() : [];
+    await applyUpstreamAuthCookies(setCookies);
+  }
 
   if (!response.ok) {
     throw new ApiClientError(
