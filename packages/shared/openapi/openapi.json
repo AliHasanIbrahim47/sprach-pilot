@@ -207,6 +207,64 @@
           }
         },
         "required": ["email", "password"]
+      },
+      "RefreshSuccessResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["refreshed"]
+          }
+        },
+        "required": ["status"]
+      },
+      "SessionListResponse": {
+        "type": "object",
+        "properties": {
+          "sessions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuthSession"
+            }
+          }
+        },
+        "required": ["sessions"]
+      },
+      "AuthSession": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Stable session family id. Matches the access token sid.",
+            "example": "018f1c3a-7b2e-7c4a-8d11-6a0e5b9c4d22"
+          },
+          "current": {
+            "type": "boolean",
+            "description": "True for the session that presented this request"
+          },
+          "userAgent": {
+            "type": ["string", "null"],
+            "description": "Device user agent captured at login"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the device session was opened"
+          },
+          "lastUsedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the refresh token was last rotated"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the current refresh token expires"
+          }
+        },
+        "required": ["id", "current", "userAgent", "createdAt", "lastUsedAt", "expiresAt"]
       }
     },
     "parameters": {}
@@ -330,7 +388,7 @@
       "post": {
         "tags": ["Auth"],
         "summary": "Log in with email and password",
-        "description": "Verifies credentials. Wrong email and wrong password return the same error. Session tokens are issued in SP-013. After 5 failures in 15 minutes for an email and IP pair, further attempts return 429.",
+        "description": "Verifies credentials. Wrong email and wrong password return the same error. A successful login sets httpOnly access and refresh cookies and does not return token strings. After 5 failures in 15 minutes for an email and IP pair, further attempts return 429.",
         "requestBody": {
           "required": true,
           "content": {
@@ -408,10 +466,146 @@
       "post": {
         "tags": ["Auth"],
         "summary": "Log out",
-        "description": "Ends the current session. Refresh-token revocation arrives with SP-013; until then this responds 204 and clears no token.",
+        "description": "Revokes the current session family and clears the access and refresh cookies. The response is 204 even when no session cookie was sent.",
         "responses": {
           "204": {
             "description": "Logged out"
+          }
+        }
+      }
+    },
+    "/v1/auth/refresh": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Rotate the refresh token",
+        "description": "Reads the refresh cookie, issues a new access token and refresh token, and invalidates the presented refresh token. Presenting a refresh token that was already rotated revokes the whole session family and returns 401.",
+        "responses": {
+          "200": {
+            "description": "Cookies rotated. The body does not contain token strings.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshSuccessResponse"
+                },
+                "example": {
+                  "status": "refreshed"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, revoked, or reused refresh token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/sessions": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "List active sessions",
+        "description": "Returns the caller's live device sessions. Requires a valid access-token cookie.",
+        "responses": {
+          "200": {
+            "description": "Active sessions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or expired access token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/sessions/{id}": {
+      "delete": {
+        "tags": ["Auth"],
+        "summary": "Revoke a session",
+        "description": "Revokes one device session family. The other device is rejected at its next refresh. Requires a valid access-token cookie.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "description": "Session family id"
+            },
+            "required": true,
+            "description": "Session family id",
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Session revoked"
+          },
+          "401": {
+            "description": "Missing or expired access token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No session with that id belongs to the caller",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/.well-known/jwks.json": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "JSON Web Key Set",
+        "description": "Public Ed25519 keys used to verify access tokens. Multiple keys can be published during rotation; each access token carries a kid.",
+        "responses": {
+          "200": {
+            "description": "Public keys",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["keys"],
+                  "properties": {
+                    "keys": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
