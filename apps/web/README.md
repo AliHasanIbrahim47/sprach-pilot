@@ -30,11 +30,11 @@ Learning content stays German and should be marked `lang="de"` when embedded in 
 
 ## Route groups
 
-| Group         | Path examples         | Purpose               |
-| ------------- | --------------------- | --------------------- |
-| `(marketing)` | `/{locale}`           | Public landing        |
-| `(auth)`      | `/{locale}/sign-in`   | Auth screens (SP-012) |
-| `(app)`       | `/{locale}/dashboard` | Authenticated shell   |
+| Group         | Path examples                                | Purpose                                                                                                                                                      |
+| ------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `(marketing)` | `/{locale}`                                  | Public landing                                                                                                                                               |
+| `(auth)`      | `/{locale}/sign-in`                          | Auth screens (SP-012)                                                                                                                                        |
+| `(app)`       | `/{locale}/dashboard`, `/{locale}/app/decks` | Authenticated shell. Middleware redirects anonymous visitors to `/{locale}/login?next=<path>` and refreshes an expired access token before the page renders. |
 
 Shared chrome (header, footer, skip link, theme, language switcher) lives in layouts under those groups; `app/[locale]/layout.tsx` owns fonts, `lang`/`dir`, and the intl provider.
 

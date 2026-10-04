@@ -9,6 +9,7 @@ import en from "../messages/en.json";
 
 const registerAccount = vi.fn();
 const loginAccount = vi.fn();
+const { routerReplace } = vi.hoisted(() => ({ routerReplace: vi.fn() }));
 
 vi.mock("@/lib/auth-actions", () => ({
   registerAccount: (...args: unknown[]) => registerAccount(...args),
@@ -25,6 +26,7 @@ vi.mock("@/i18n/navigation", () => ({
       {children}
     </a>
   ),
+  useRouter: () => ({ replace: routerReplace }),
 }));
 
 import { LoginForm } from "@/components/auth/login-form";
@@ -122,6 +124,7 @@ describe("register form", () => {
 describe("login form", () => {
   beforeEach(() => {
     loginAccount.mockReset();
+    routerReplace.mockReset();
   });
 
   it("shows the generic credential error", async () => {
@@ -134,5 +137,17 @@ describe("login form", () => {
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
     expect(await screen.findByText(AUTH_COPY.invalidCredentials)).toBeInTheDocument();
+  });
+
+  it("continues to the requested path after a successful sign-in", async () => {
+    loginAccount.mockResolvedValue({ ok: true, intent: "login" });
+    const user = userEvent.setup();
+    renderForm(<LoginForm nextPath="/app/decks" />);
+
+    await user.type(screen.getByLabelText("Email"), "learner@example.com");
+    await user.type(screen.getByLabelText("Password"), "correct-horse-battery");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(routerReplace).toHaveBeenCalledWith("/app/decks");
   });
 });
