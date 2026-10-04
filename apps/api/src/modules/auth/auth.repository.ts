@@ -5,6 +5,7 @@ export interface AuthUserRecord {
   email: string;
   passwordHash: string;
   displayName: string;
+  role: string;
   deletedAt: Date | null;
 }
 
@@ -26,6 +27,7 @@ export type CreateUserResult = { status: "created"; id: string } | { status: "du
 
 export interface UserRepository {
   findByEmail(email: string): Promise<AuthUserRecord | null>;
+  findById(id: string): Promise<AuthUserRecord | null>;
   createWithConsent(input: CreateUserInput): Promise<CreateUserResult>;
 }
 
@@ -39,6 +41,7 @@ function toRecord(user: {
   email: string;
   passwordHash: string;
   displayName: string;
+  role: string;
   deletedAt: Date | null;
 }): AuthUserRecord {
   return {
@@ -46,6 +49,7 @@ function toRecord(user: {
     email: user.email,
     passwordHash: user.passwordHash,
     displayName: user.displayName,
+    role: user.role,
     deletedAt: user.deletedAt,
   };
 }
@@ -54,6 +58,11 @@ export function createUserRepository(client: PrismaClient = prisma): UserReposit
   return {
     async findByEmail(email) {
       const user = await client.user.findUnique({ where: { email } });
+      return user ? toRecord(user) : null;
+    },
+
+    async findById(id) {
+      const user = await client.user.findUnique({ where: { id } });
       return user ? toRecord(user) : null;
     },
 
@@ -94,6 +103,11 @@ export function createMemoryUserRepository(): MemoryUserRepository {
       return user ? toRecord(user) : null;
     },
 
+    async findById(id) {
+      const user = [...users.values()].find((record) => record.id === id);
+      return user ? toRecord(user) : null;
+    },
+
     async createWithConsent(input) {
       if (users.has(input.email)) return { status: "duplicate" };
       const record = {
@@ -101,6 +115,7 @@ export function createMemoryUserRepository(): MemoryUserRepository {
         email: input.email,
         passwordHash: input.passwordHash,
         displayName: input.displayName,
+        role: "learner",
         deletedAt: null,
         consents: [...input.consents],
       };

@@ -1,10 +1,10 @@
 import { loginBodySchema, registerBodySchema } from "@sprachpilot/shared";
-import { Router } from "express";
+import { type RequestHandler, Router } from "express";
 
 import { validateBody } from "../../middleware/validate.js";
 import type { AuthController } from "./auth.controller.js";
 
-export function createAuthRouter(controller: AuthController): Router {
+export function createAuthRouter(controller: AuthController, requireAuth: RequestHandler): Router {
   const router = Router();
 
   router.post("/register", validateBody(registerBodySchema), (req, res, next) => {
@@ -15,9 +15,29 @@ export function createAuthRouter(controller: AuthController): Router {
     void controller.login(req, res).catch(next);
   });
 
-  router.post("/logout", (req, res) => {
-    controller.logout(req, res);
+  router.post("/refresh", (req, res, next) => {
+    void controller.refresh(req, res).catch(next);
   });
 
+  router.post("/logout", (req, res, next) => {
+    void controller.logout(req, res).catch(next);
+  });
+
+  router.get("/sessions", requireAuth, (req, res, next) => {
+    void controller.listSessions(req, res).catch(next);
+  });
+
+  router.delete("/sessions/:id", requireAuth, (req, res, next) => {
+    void controller.revokeSession(req, res).catch(next);
+  });
+
+  return router;
+}
+
+export function createJwksRouter(controller: AuthController): Router {
+  const router = Router();
+  router.get("/.well-known/jwks.json", (req, res) => {
+    controller.jwks(req, res);
+  });
   return router;
 }
