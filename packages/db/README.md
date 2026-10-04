@@ -37,6 +37,8 @@ Passwords are hashed with argon2id (`memoryCost` 19456 KiB, `timeCost` 2, `paral
 
 `consent_records` stores Terms and Privacy acceptance (policy, version, timestamp, IP hash) captured at registration.
 
+`sessions` stores refresh-token families (SP-013). The raw refresh token is never written; `refresh_token_hash` is an HMAC. `family_id` stays stable across rotations and is the access-token `sid`. A reused refresh token sets `revoked_at` on every row in that family.
+
 ## Roles and connections
 
 | Role                | Used by                                     | Privileges                                             |
