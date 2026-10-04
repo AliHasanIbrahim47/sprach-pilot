@@ -67,8 +67,31 @@ const apiEnvSchema = z.object({
   SMTP_USER: z.string().optional().transform(emptyToUndefined),
   SMTP_PASS: z.string().optional().transform(emptyToUndefined),
 
-  JWT_ACCESS_SECRET: z.string().optional().transform(emptyToUndefined),
-  JWT_REFRESH_SECRET: z.string().optional().transform(emptyToUndefined),
+  /** Active signing key id. Must appear in JWT_PUBLIC_KEYS. */
+  JWT_ACTIVE_KID: z
+    .string()
+    .min(1)
+    .max(128)
+    .regex(
+      /^[A-Za-z0-9._-]+$/,
+      "must contain only letters, numbers, dots, underscores, or hyphens",
+    ),
+  /** PKCS#8 PEM for the active Ed25519 key. Use \\n for line breaks in a single env line. */
+  JWT_PRIVATE_KEY: z.string().min(1).transform(normalizePem),
+  /** JSON array of { kid, pem } public keys. Retired keys stay here so existing access tokens verify. */
+  JWT_PUBLIC_KEYS: z.string().min(2),
+  /** HMAC pepper for refresh-token hashes. Never log. */
+  JWT_REFRESH_PEPPER: z.string().min(16, "must be at least 16 characters"),
+  COOKIE_DOMAIN: z
+    .string()
+    .optional()
+    .transform(emptyToUndefined)
+    .pipe(
+      z
+        .string()
+        .regex(/^[A-Za-z0-9.-]+$/)
+        .optional(),
+    ),
 
   GOOGLE_OAUTH_CLIENT_ID: z.string().optional().transform(emptyToUndefined),
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional().transform(emptyToUndefined),
@@ -115,9 +138,12 @@ export type ApiConfig = Readonly<{
     pass: string | undefined;
   }>;
   jwt: Readonly<{
-    accessSecret: string | undefined;
-    refreshSecret: string | undefined;
+    activeKid: string;
+    privateKeyPem: string;
+    publicKeys: readonly { kid: string; pem: string }[];
+    refreshPepper: string;
   }>;
+  cookieDomain: string | undefined;
   oauth: Readonly<{
     google: Readonly<{
       clientId: string;
@@ -145,12 +171,56 @@ const SECRET_KEYS = new Set([
   "accessKeyId",
   "secretAccessKey",
   "pass",
-  "accessSecret",
-  "refreshSecret",
+  "privateKeyPem",
+  "refreshPepper",
   "clientSecret",
   "ipHashSecret",
   "internalApiSecret",
 ]);
+
+function normalizePem(value: string): string {
+  return value.trim().replaceAll("\\n", "\n");
+}
+
+const publicKeyEntrySchema = z.object({
+  kid: z
+    .string()
+    .min(1)
+    .max(128)
+    .regex(/^[A-Za-z0-9._-]+$/),
+  pem: z.string().min(1),
+});
+
+function parsePublicKeys(raw: string, activeKid: string): readonly { kid: string; pem: string }[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error("Invalid configuration:\n  - JWT_PUBLIC_KEYS: must be valid JSON");
+  }
+
+  const result = z.array(publicKeyEntrySchema).min(1).safeParse(parsed);
+  if (!result.success) {
+    throw new Error(
+      "Invalid configuration:\n  - JWT_PUBLIC_KEYS: must be a JSON array of { kid, pem }",
+    );
+  }
+
+  const keys = result.data.map((entry) => ({ kid: entry.kid, pem: normalizePem(entry.pem) }));
+  const kids = new Set<string>();
+  for (const key of keys) {
+    if (kids.has(key.kid)) {
+      throw new Error(`Invalid configuration:\n  - JWT_PUBLIC_KEYS: duplicate kid "${key.kid}"`);
+    }
+    kids.add(key.kid);
+  }
+  if (!kids.has(activeKid)) {
+    throw new Error(
+      "Invalid configuration:\n  - JWT_ACTIVE_KID: must match a kid in JWT_PUBLIC_KEYS",
+    );
+  }
+  return keys;
+}
 
 function deepFreeze<T>(value: T): T {
   if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
@@ -204,9 +274,12 @@ function toApiConfig(env: z.infer<typeof apiEnvSchema>): ApiConfig {
       pass: env.SMTP_PASS,
     },
     jwt: {
-      accessSecret: env.JWT_ACCESS_SECRET,
-      refreshSecret: env.JWT_REFRESH_SECRET,
+      activeKid: env.JWT_ACTIVE_KID,
+      privateKeyPem: env.JWT_PRIVATE_KEY,
+      publicKeys: parsePublicKeys(env.JWT_PUBLIC_KEYS, env.JWT_ACTIVE_KID),
+      refreshPepper: env.JWT_REFRESH_PEPPER,
     },
+    cookieDomain: env.COOKIE_DOMAIN,
     oauth: { google: googleOAuth },
     ai: {
       mode: env.AI_MODE,
