@@ -62,11 +62,14 @@
     "haveAccount": "Zaten hesabın var mı?",
     "needAccount": "Hesaba mı ihtiyacın var?",
     "goToSignIn": "Giriş yap",
-    "goToRegister": "Hesap oluştur"
+    "goToRegister": "Hesap oluştur",
+    "signOut": "Çıkış yap"
   },
   "App": {
     "dashboardTitle": "Kontrol paneli",
-    "dashboardBody": "Kimliği doğrulanmış uygulama kabuğu yer tutucusu. Özellik sayfaları sonraki işlerde gelecek."
+    "dashboardBody": "Kimliği doğrulanmış uygulama kabuğu yer tutucusu. Özellik sayfaları sonraki işlerde gelecek.",
+    "decksTitle": "Kartlar",
+    "decksBody": "Kartların burada görünecek."
   },
   "NotFound": {
     "code": "404",

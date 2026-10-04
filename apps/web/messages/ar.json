@@ -62,11 +62,14 @@
     "haveAccount": "لديك حساب بالفعل؟",
     "needAccount": "تحتاج إلى حساب؟",
     "goToSignIn": "تسجيل الدخول",
-    "goToRegister": "إنشاء حساب"
+    "goToRegister": "إنشاء حساب",
+    "signOut": "تسجيل الخروج"
   },
   "App": {
     "dashboardTitle": "لوحة التحكم",
-    "dashboardBody": "عنصر نائب لتطبيق المصادقة. صفحات الميزات تأتي لاحقاً."
+    "dashboardBody": "عنصر نائب لتطبيق المصادقة. صفحات الميزات تأتي لاحقاً.",
+    "decksTitle": "البطاقات",
+    "decksBody": "ستظهر بطاقاتك هنا."
   },
   "NotFound": {
     "code": "404",

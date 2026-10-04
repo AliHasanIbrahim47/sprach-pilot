@@ -62,11 +62,14 @@
     "haveAccount": "Du hast schon ein Konto?",
     "needAccount": "Du brauchst ein Konto?",
     "goToSignIn": "Anmelden",
-    "goToRegister": "Konto erstellen"
+    "goToRegister": "Konto erstellen",
+    "signOut": "Abmelden"
   },
   "App": {
     "dashboardTitle": "Dashboard",
-    "dashboardBody": "Platzhalter für die authentifizierte App. Feature-Seiten folgen in späteren Tickets."
+    "dashboardBody": "Platzhalter für die authentifizierte App. Feature-Seiten folgen in späteren Tickets.",
+    "decksTitle": "Karteikarten",
+    "decksBody": "Deine Karteikarten erscheinen hier."
   },
   "NotFound": {
     "code": "404",
