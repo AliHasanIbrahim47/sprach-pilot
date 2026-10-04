@@ -9,21 +9,24 @@ import { PasswordField } from "@/components/auth/password-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { loginAccount } from "@/lib/auth-actions";
 import { type AuthFieldErrors, zodIssuesToFieldErrors } from "@/lib/auth-field-errors";
 
-export function LoginForm(): React.JSX.Element {
+interface LoginFormProps {
+  nextPath?: string | null;
+}
+
+export function LoginForm({ nextPath = null }: LoginFormProps): React.JSX.Element {
   const t = useTranslations("Auth");
+  const router = useRouter();
   const [fieldErrors, setFieldErrors] = useState<AuthFieldErrors>({});
   const [summary, setSummary] = useState("");
-  const [isSuccess, setIsSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setSummary("");
-    setIsSuccess(false);
 
     const formData = new FormData(event.currentTarget);
     const parsed = loginBodySchema.safeParse({
@@ -46,8 +49,7 @@ export function LoginForm(): React.JSX.Element {
         setSummary(summaryFor(result, t));
         return;
       }
-      setIsSuccess(true);
-      setSummary(t("loginSuccess"));
+      router.replace(nextPath ?? "/dashboard");
     } finally {
       setIsSubmitting(false);
     }
@@ -58,7 +60,7 @@ export function LoginForm(): React.JSX.Element {
 
   return (
     <form className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
-      <p aria-live="polite" className={isSuccess ? "text-sm" : "text-destructive text-sm"}>
+      <p aria-live="polite" className="text-destructive text-sm">
         {summary}
       </p>
 

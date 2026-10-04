@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { SignOutForm } from "@/components/auth/sign-out-form";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 
@@ -11,6 +12,9 @@ export default function AppShellLayout({ children }: AppLayoutProps): React.JSX.
   return (
     <>
       <SiteHeader />
+      <div className="mx-auto flex w-full max-w-6xl justify-end px-4 pt-4 sm:px-6">
+        <SignOutForm />
+      </div>
       <main
         id="main-content"
         className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-10 sm:px-6"
