@@ -1,8 +1,16 @@
 "use server";
 
 import type { LoginBody, RegisterBody } from "@sprachpilot/shared";
-import { loginBodySchema, registerBodySchema } from "@sprachpilot/shared";
-import { headers } from "next/headers";
+import {
+  ACCESS_TOKEN_COOKIE,
+  loginBodySchema,
+  REFRESH_TOKEN_COOKIE,
+  registerBodySchema,
+} from "@sprachpilot/shared";
+import { cookies, headers } from "next/headers";
+import { getLocale } from "next-intl/server";
+
+import { redirect } from "@/i18n/navigation";
 
 import { ApiClientError, apiFetch } from "./api-client";
 import type { AuthActionResult } from "./auth-action-result";
@@ -45,11 +53,28 @@ export async function loginAccount(input: LoginBody): Promise<AuthActionResult> 
       headers: await requestHeaders(),
       body: JSON.stringify(parsed.data),
       forwardCookies: false,
+      applyAuthCookies: true,
     });
     return { ok: true, intent: "login" };
   } catch (error) {
     return mapAuthError(error);
   }
+}
+
+export async function logoutAccount(): Promise<void> {
+  try {
+    await apiFetch("/v1/auth/logout", {
+      method: "POST",
+      applyAuthCookies: true,
+    });
+  } catch {
+    // Still drop local cookies when the API is unreachable.
+  }
+
+  const store = await cookies();
+  store.delete(ACCESS_TOKEN_COOKIE);
+  store.delete(REFRESH_TOKEN_COOKIE);
+  redirect({ href: "/login", locale: await getLocale() });
 }
 
 function validationResult(fieldErrors: AuthFieldErrors): AuthActionResult {
