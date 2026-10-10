@@ -15,7 +15,9 @@
   "Nav": {
     "home": "Home",
     "signIn": "Sign in",
-    "app": "App"
+    "app": "App",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
   },
   "Footer": {
     "tagline": "German for real life.",
@@ -63,7 +65,25 @@
     "needAccount": "Need an account?",
     "goToSignIn": "Sign in",
     "goToRegister": "Create account",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "forgotPassword": "Forgot password?",
+    "forgotPasswordTitle": "Reset your password",
+    "forgotPasswordBody": "Enter the email for your account. If it exists, we will send reset instructions.",
+    "forgotPasswordSubmit": "Send reset link",
+    "passwordResetAccepted": "If an account exists for that email, we sent password reset instructions.",
+    "resetPasswordTitle": "Choose a new password",
+    "resetPasswordBody": "Pick a new password. Other signed-in devices will be signed out.",
+    "resetPasswordSubmit": "Update password",
+    "passwordResetComplete": "Your password has been reset. Sign in with the new password.",
+    "verifyTitle": "Verify your email",
+    "emailVerified": "Your email is verified.",
+    "linkAlreadyUsed": "Link already used",
+    "linkExpired": "This link has expired. Request a new one.",
+    "linkInvalid": "This link is invalid. Request a new one.",
+    "linkMissing": "Open the link from your email, or request a new one.",
+    "resendVerification": "Send a new link",
+    "verificationSent": "If an account exists for that email, we sent a verification link.",
+    "verifyToContinue": "Verify your email before uploading documents or joining tandem and café."
   },
   "App": {
     "dashboardTitle": "Dashboard",
