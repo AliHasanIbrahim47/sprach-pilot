@@ -12,6 +12,7 @@ import { describe, expect, it } from "vitest";
 
 import { createMemoryEmailQueue } from "../email/email-queue.js";
 import { createMemoryEmailSendLimiter } from "../email/email-rate-limit.js";
+import { createMemoryAccountRepository } from "./account.repository.js";
 import { createMemoryUserRepository } from "./auth.repository.js";
 import {
   type AuthLogger,
@@ -82,6 +83,7 @@ function createHarness(overrides: Partial<AuthServiceDependencies> = {}) {
   const sessions = createMemorySessionRepository();
   const dependencies: AuthServiceDependencies = {
     users,
+    accounts: createMemoryAccountRepository(),
     sessions,
     tokens: tokenService,
     throttle: createMemoryLoginThrottle(),

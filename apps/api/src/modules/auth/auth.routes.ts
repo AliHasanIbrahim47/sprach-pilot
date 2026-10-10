@@ -1,5 +1,7 @@
 import {
   loginBodySchema,
+  oauthGoogleCallbackBodySchema,
+  oauthGoogleLinkBodySchema,
   passwordForgotBodySchema,
   passwordResetBodySchema,
   registerBodySchema,
@@ -44,6 +46,26 @@ export function createAuthRouter(controller: AuthController, requireAuth: Reques
 
   router.post("/password/reset", validateBody(passwordResetBodySchema), (req, res, next) => {
     void controller.resetPassword(req, res).catch(next);
+  });
+
+  router.get("/oauth/google", (req, res, next) => {
+    void controller.oauthGoogleStart(req, res).catch(next);
+  });
+
+  router.post(
+    "/oauth/google/callback",
+    validateBody(oauthGoogleCallbackBodySchema),
+    (req, res, next) => {
+      void controller.oauthGoogleCallback(req, res).catch(next);
+    },
+  );
+
+  router.post("/oauth/google/link", validateBody(oauthGoogleLinkBodySchema), (req, res, next) => {
+    void controller.oauthGoogleLink(req, res).catch(next);
+  });
+
+  router.delete("/oauth/google", requireAuth, (req, res, next) => {
+    void controller.oauthGoogleUnlink(req, res).catch(next);
   });
 
   router.get("/me", requireAuth, (req, res, next) => {

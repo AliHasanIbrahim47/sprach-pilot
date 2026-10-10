@@ -25,6 +25,8 @@ import {
 
 import type { EmailQueue } from "../email/email-queue.js";
 import type { EmailSendLimiter } from "../email/email-rate-limit.js";
+import type { AccountRepository } from "./account.repository.js";
+import { GOOGLE_PROVIDER } from "./account.repository.js";
 import type { UserRepository } from "./auth.repository.js";
 import type { EmailTokenRepository } from "./email-token.repository.js";
 import type { EmailTokenCodec } from "./email-token-codec.js";
@@ -52,6 +54,7 @@ export interface AuthLogger {
 
 export interface AuthServiceDependencies {
   users: UserRepository;
+  accounts: AccountRepository;
   sessions: SessionRepository;
   tokens: TokenService;
   throttle: LoginThrottle;
@@ -133,6 +136,7 @@ function normalizeEmail(email: string): string {
 export function createAuthService(dependencies: AuthServiceDependencies): AuthService {
   const {
     users,
+    accounts,
     sessions,
     tokens,
     throttle,
@@ -266,12 +270,10 @@ export function createAuthService(dependencies: AuthServiceDependencies): AuthSe
 
       const user = await users.findByEmail(email);
       const activeUser = user && user.deletedAt === null ? user : null;
-      const passwordOk = await hasher.verify(
-        activeUser ? activeUser.passwordHash : await hasher.dummyHash(),
-        input.password,
-      );
+      const passwordHash = activeUser?.passwordHash ?? (await hasher.dummyHash());
+      const passwordOk = await hasher.verify(passwordHash, input.password);
 
-      if (!activeUser || !passwordOk) {
+      if (!activeUser || !activeUser.passwordHash || !passwordOk) {
         await throttle.recordFailure(subjectKey);
         metrics.recordLogin("failure");
         throw new UnauthorizedError(AUTH_COPY.invalidCredentials);
@@ -473,12 +475,15 @@ export function createAuthService(dependencies: AuthServiceDependencies): AuthSe
     async getAccount(userId) {
       const user = await users.findById(userId);
       if (!user || user.deletedAt) throw new UnauthorizedError();
+      const providers = await accounts.listProviders(userId);
       return {
         id: user.id,
         displayName: user.displayName,
         email: user.email,
         emailVerified: user.emailVerifiedAt !== null,
         locale: user.uiLocale,
+        hasPassword: user.passwordHash !== null,
+        googleLinked: providers.includes(GOOGLE_PROVIDER),
       };
     },
   };
