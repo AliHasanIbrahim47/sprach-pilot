@@ -12,6 +12,7 @@ describe("session gate", () => {
   it("treats locale-prefixed app and dashboard paths as protected", () => {
     expect(isProtectedAppPath("/en/app/decks")).toBe(true);
     expect(isProtectedAppPath("/de/dashboard")).toBe(true);
+    expect(isProtectedAppPath("/en/onboarding")).toBe(true);
     expect(isProtectedAppPath("/en/login")).toBe(false);
     expect(isProtectedAppPath("/en")).toBe(false);
   });
