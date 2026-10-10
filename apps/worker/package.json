@@ -5,21 +5,34 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
     "type-check": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
-    "test": "echo \"no tests yet\"",
+    "test": "vitest run",
     "clean": "rm -rf dist .turbo *.tsbuildinfo"
   },
   "dependencies": {
+    "@react-email/components": "^1.0.12",
+    "@react-email/render": "^2.1.0",
     "@sprachpilot/db": "workspace:*",
     "@sprachpilot/shared": "workspace:*",
+    "bullmq": "^6.3.11",
+    "ioredis": "^6.0.0",
+    "nodemailer": "^10.0.15",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
     "zod": "^4.1.11"
   },
   "devDependencies": {
     "@sprachpilot/config": "workspace:*",
     "@types/node": "^24.5.2",
+    "@types/nodemailer": "^8.0.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "eslint": "^9.36.0",
-    "typescript": "^5.9.3"
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.3"
   }
 }

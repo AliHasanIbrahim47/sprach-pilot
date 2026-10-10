@@ -1,23 +1,35 @@
 import { randomUUID } from "node:crypto";
 
 import {
+  type AccountResponse,
   AUTH_COPY,
+  ConflictError,
+  type EmailJob,
   ForbiddenError,
+  isUiLocale,
   type LoginBody,
   type LoginSuccessResponse,
   NotFoundError,
+  type PasswordForgotBody,
+  type PasswordResetBody,
+  type PasswordResetResponse,
   RateLimitedError,
   type RegisterAcceptedResponse,
   type RegisterBody,
   type SessionListResponse,
+  type UiLocale,
   UnauthorizedError,
   ValidationError,
+  type VerifyEmailResponse,
 } from "@sprachpilot/shared";
 
+import type { EmailQueue } from "../email/email-queue.js";
+import type { EmailSendLimiter } from "../email/email-rate-limit.js";
 import type { UserRepository } from "./auth.repository.js";
+import type { EmailTokenRepository } from "./email-token.repository.js";
+import type { EmailTokenCodec } from "./email-token-codec.js";
 import { hashIp, loginSubjectKey } from "./ip-hash.js";
 import type { LoginThrottle } from "./login-throttle.js";
-import type { Mailer } from "./mailer.js";
 import type { AuthMetrics } from "./metrics.js";
 import type { PasswordHasher } from "./password-hasher.js";
 import { isCommonPassword } from "./password-policy.js";
@@ -30,13 +42,8 @@ export const CONSENT_POLICIES = [
   { policy: "privacy", version: "2026-10-03" },
 ] as const;
 
-const DUPLICATE_NOTICE_SUBJECT = "Someone tried to register with your SprachPilot email";
-const DUPLICATE_NOTICE_TEXT = [
-  "Someone tried to create a SprachPilot account using this email address.",
-  "",
-  "If that was you, sign in with your existing password.",
-  "If it was not you, you can ignore this message. No new account was created.",
-].join("\n");
+const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
+const PASSWORD_RESET_TTL_MS = 60 * 60 * 1000;
 
 export interface AuthLogger {
   info(message: string, meta?: Record<string, unknown>): void;
@@ -48,7 +55,11 @@ export interface AuthServiceDependencies {
   sessions: SessionRepository;
   tokens: TokenService;
   throttle: LoginThrottle;
-  mailer: Mailer;
+  emailTokens: EmailTokenRepository;
+  emailCodec: EmailTokenCodec;
+  emailSends: EmailSendLimiter;
+  emailQueue: EmailQueue;
+  webPublicUrl: string;
   metrics: AuthMetrics;
   hasher: PasswordHasher;
   clock: () => Date;
@@ -60,6 +71,7 @@ export interface AuthServiceDependencies {
 export interface AuthRequestContext {
   ip: string;
   userAgent?: string;
+  locale?: string;
 }
 
 /** Tokens travel in httpOnly cookies. Callers must not put these fields in JSON. */
@@ -81,6 +93,17 @@ export interface AuthService {
   logout(input: { refreshToken?: string; accessToken?: string }): Promise<void>;
   listSessions(userId: string, currentFamilyId: string): Promise<SessionListResponse>;
   revokeSession(userId: string, familyId: string): Promise<void>;
+  verifyEmail(token: string): Promise<VerifyEmailResponse>;
+  resendVerification(
+    input: { userId?: string; email?: string },
+    context: AuthRequestContext,
+  ): Promise<RegisterAcceptedResponse>;
+  forgotPassword(
+    input: PasswordForgotBody,
+    context: AuthRequestContext,
+  ): Promise<RegisterAcceptedResponse>;
+  resetPassword(input: PasswordResetBody): Promise<PasswordResetResponse>;
+  getAccount(userId: string): Promise<AccountResponse>;
 }
 
 function acceptedResponse(): RegisterAcceptedResponse {
@@ -103,6 +126,9 @@ function normalizeEmail(email: string): string {
  * - access tokens carry only sub, role, sid, iat, and exp
  * - refresh tokens are stored as an HMAC and rotated on every refresh
  * - reuse of a rotated refresh token revokes the whole session family
+ * - verification and reset tokens are 256-bit, stored as an HMAC, and single-use
+ * - forgot-password and resend responses do not reveal whether the email exists
+ * - outbound mail is queued; the raw token is not written to logs
  */
 export function createAuthService(dependencies: AuthServiceDependencies): AuthService {
   const {
@@ -110,7 +136,11 @@ export function createAuthService(dependencies: AuthServiceDependencies): AuthSe
     sessions,
     tokens,
     throttle,
-    mailer,
+    emailTokens,
+    emailCodec,
+    emailSends,
+    emailQueue,
+    webPublicUrl,
     metrics,
     hasher,
     clock,
@@ -182,20 +212,14 @@ export function createAuthService(dependencies: AuthServiceDependencies): AuthSe
       const email = normalizeEmail(input.email);
       const passwordHash = await hasher.hash(input.password);
       const existing = await users.findByEmail(email);
+      const locale = resolveLocale(context.locale);
 
       if (existing) {
         if (existing.deletedAt === null) {
-          try {
-            await mailer.send({
-              to: existing.email,
-              subject: DUPLICATE_NOTICE_SUBJECT,
-              text: DUPLICATE_NOTICE_TEXT,
-            });
-          } catch (error) {
-            logger.error("registration notice failed", {
-              reason: error instanceof Error ? error.name : "Error",
-            });
-          }
+          await enqueueRegistrationNotice(
+            existing,
+            resolveLocale(context.locale, existing.uiLocale),
+          );
         }
         metrics.recordRegister("duplicate");
         return acceptedResponse();
@@ -207,6 +231,7 @@ export function createAuthService(dependencies: AuthServiceDependencies): AuthSe
         email,
         passwordHash,
         displayName: input.displayName,
+        uiLocale: locale,
         consents: CONSENT_POLICIES.map((policy) => ({
           policy: policy.policy,
           version: policy.version,
@@ -220,6 +245,7 @@ export function createAuthService(dependencies: AuthServiceDependencies): AuthSe
         return acceptedResponse();
       }
 
+      await enqueueVerification({ id: created.id, email, uiLocale: locale }, locale);
       metrics.recordRegister("created");
       logger.info("registration created");
       return acceptedResponse();
@@ -256,7 +282,11 @@ export function createAuthService(dependencies: AuthServiceDependencies): AuthSe
       const credentials = await issueCredentials(activeUser, context);
       return {
         status: "authenticated",
-        user: { id: activeUser.id, displayName: activeUser.displayName },
+        user: {
+          id: activeUser.id,
+          displayName: activeUser.displayName,
+          emailVerified: activeUser.emailVerifiedAt !== null,
+        },
         credentials,
       };
     },
@@ -367,7 +397,175 @@ export function createAuthService(dependencies: AuthServiceDependencies): AuthSe
         now: clock(),
       });
     },
+
+    async verifyEmail(token) {
+      const outcome = await emailTokens.consume(emailCodec.hash(token), clock());
+      if (outcome.status === "used") throw tokenUsed();
+      if (outcome.status === "expired") throw tokenExpired();
+      if (outcome.status === "invalid") throw tokenInvalid();
+      await users.markEmailVerified(outcome.userId, clock());
+      return { status: "verified", message: AUTH_COPY.emailVerified };
+    },
+
+    async resendVerification(input, context) {
+      const user = await findResendUser(input);
+      if (user && user.deletedAt === null && user.emailVerifiedAt === null) {
+        await enqueueVerification(user, resolveLocale(context.locale, user.uiLocale));
+      }
+      return { status: "accepted", message: AUTH_COPY.verificationResent };
+    },
+
+    async forgotPassword(input, context) {
+      const email = normalizeEmail(input.email);
+      const user = await users.findByEmail(email);
+      if (user && user.deletedAt === null) {
+        const locale = resolveLocale(context.locale, user.uiLocale);
+        const allowed = await emailSends.consume(user.email, "password_reset");
+        if (allowed) {
+          const token = emailCodec.create();
+          const now = clock();
+          await emailTokens.insert({
+            userId: user.id,
+            purpose: "password_reset",
+            tokenHash: emailCodec.hash(token),
+            expiresAt: new Date(now.getTime() + PASSWORD_RESET_TTL_MS),
+            now,
+          });
+          await safeEnqueue({
+            to: user.email,
+            locale,
+            template: "reset-password",
+            url: buildAppLink(webPublicUrl, locale, "/reset-password", token),
+          });
+        }
+      }
+      return { status: "accepted", message: AUTH_COPY.passwordResetAccepted };
+    },
+
+    async resetPassword(input) {
+      if (isCommonPassword(input.password)) {
+        throw new ValidationError({
+          errors: [
+            {
+              field: "password",
+              code: "password_too_common",
+              message: AUTH_COPY.passwordTooCommon,
+            },
+          ],
+        });
+      }
+
+      const now = clock();
+      const outcome = await emailTokens.consume(emailCodec.hash(input.token), now);
+      if (outcome.status === "used") throw tokenUsed();
+      if (outcome.status === "expired") throw tokenExpired();
+      if (outcome.status === "invalid") throw tokenInvalid();
+
+      await users.updatePassword(outcome.userId, await hasher.hash(input.password));
+      await sessions.revokeAllForUser({
+        userId: outcome.userId,
+        reason: "password_reset",
+        now: clock(),
+      });
+      return { status: "reset", message: AUTH_COPY.passwordResetComplete };
+    },
+
+    async getAccount(userId) {
+      const user = await users.findById(userId);
+      if (!user || user.deletedAt) throw new UnauthorizedError();
+      return {
+        id: user.id,
+        displayName: user.displayName,
+        email: user.email,
+        emailVerified: user.emailVerifiedAt !== null,
+        locale: user.uiLocale,
+      };
+    },
   };
+
+  async function findResendUser(input: { userId?: string; email?: string }) {
+    if (input.userId) return users.findById(input.userId);
+    if (input.email) return users.findByEmail(normalizeEmail(input.email));
+    return null;
+  }
+
+  async function enqueueVerification(
+    user: { id: string; email: string; uiLocale: UiLocale },
+    locale: UiLocale,
+  ): Promise<void> {
+    const allowed = await emailSends.consume(user.email, "verification");
+    if (!allowed) return;
+    const token = emailCodec.create();
+    const now = clock();
+    await emailTokens.insert({
+      userId: user.id,
+      purpose: "email_verification",
+      tokenHash: emailCodec.hash(token),
+      expiresAt: new Date(now.getTime() + VERIFICATION_TTL_MS),
+      now,
+    });
+    await safeEnqueue({
+      to: user.email,
+      locale,
+      template: "verify-email",
+      url: buildAppLink(webPublicUrl, locale, "/verify-email", token),
+    });
+  }
+
+  async function enqueueRegistrationNotice(
+    user: { email: string; uiLocale: UiLocale },
+    locale: UiLocale,
+  ): Promise<void> {
+    const allowed = await emailSends.consume(user.email, "registration_notice");
+    if (!allowed) return;
+    await safeEnqueue({
+      to: user.email,
+      locale,
+      template: "registration-notice",
+    });
+  }
+
+  async function safeEnqueue(job: EmailJob): Promise<void> {
+    try {
+      await emailQueue.enqueue(job);
+    } catch (error) {
+      logger.error("email enqueue failed", {
+        template: job.template,
+        reason: error instanceof Error ? error.name : "Error",
+      });
+    }
+  }
+}
+
+function resolveLocale(requested: string | undefined, fallback: UiLocale = "en"): UiLocale {
+  if (requested && isUiLocale(requested)) return requested;
+  return fallback;
+}
+
+function buildAppLink(origin: string, locale: UiLocale, path: string, token: string): string {
+  const url = new URL(`${origin.replace(/\/$/, "")}/${locale}${path}`);
+  url.searchParams.set("token", token);
+  return url.toString();
+}
+
+function tokenUsed(): ConflictError {
+  return new ConflictError(AUTH_COPY.linkAlreadyUsed, {
+    errors: [{ field: "token", code: "token_used", message: AUTH_COPY.linkAlreadyUsed }],
+  });
+}
+
+function tokenExpired(): ValidationError {
+  return new ValidationError({
+    detail: AUTH_COPY.linkExpired,
+    errors: [{ field: "token", code: "token_expired", message: AUTH_COPY.linkExpired }],
+  });
+}
+
+function tokenInvalid(): ValidationError {
+  return new ValidationError({
+    detail: AUTH_COPY.linkInvalid,
+    errors: [{ field: "token", code: "token_invalid", message: AUTH_COPY.linkInvalid }],
+  });
 }
 
 function deviceUserAgent(value: string | undefined): string | null {

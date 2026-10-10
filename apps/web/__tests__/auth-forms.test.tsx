@@ -49,6 +49,13 @@ describe("auth copy", () => {
     expect(en.Auth.verifyEmail).toBe(AUTH_COPY.registerAccepted);
     expect(en.Auth.invalidCredentials).toBe(AUTH_COPY.invalidCredentials);
     expect(en.Auth.passwordTooCommon).toBe(AUTH_COPY.passwordTooCommon);
+    expect(en.Auth.linkAlreadyUsed).toBe(AUTH_COPY.linkAlreadyUsed);
+    expect(en.Auth.passwordResetAccepted).toBe(AUTH_COPY.passwordResetAccepted);
+    expect(en.Auth.verificationSent).toBe(AUTH_COPY.verificationResent);
+    expect(en.Auth.passwordResetComplete).toBe(AUTH_COPY.passwordResetComplete);
+    expect(en.Auth.emailVerified).toBe(AUTH_COPY.emailVerified);
+    expect(en.Auth.linkExpired).toBe(AUTH_COPY.linkExpired);
+    expect(en.Auth.linkInvalid).toBe(AUTH_COPY.linkInvalid);
   });
 });
 

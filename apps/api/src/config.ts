@@ -108,6 +108,7 @@ const apiEnvSchema = z.object({
   LANGUAGETOOL_URL: z.string().url().default("http://localhost:8010"),
 
   FEATURE_REGISTRATION_ENABLED: requiredBooleanSchema(true),
+  WEB_PUBLIC_URL: z.string().url().default("http://localhost:3000"),
 
   /** HMAC pepper for client IP hashes. Required; never log the value. */
   IP_HASH_SECRET: z.string().min(16, "must be at least 16 characters"),
@@ -161,6 +162,7 @@ export type ApiConfig = Readonly<{
   features: Readonly<{
     registrationEnabled: boolean;
   }>;
+  webPublicUrl: string;
   ipHashSecret: string;
   internalApiSecret: string | undefined;
 }>;
@@ -291,6 +293,7 @@ function toApiConfig(env: z.infer<typeof apiEnvSchema>): ApiConfig {
     features: {
       registrationEnabled: env.FEATURE_REGISTRATION_ENABLED,
     },
+    webPublicUrl: env.WEB_PUBLIC_URL,
     ipHashSecret: env.IP_HASH_SECRET,
     internalApiSecret: env.INTERNAL_API_SECRET,
   });

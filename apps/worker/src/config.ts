@@ -51,6 +51,7 @@ const workerEnvSchema = z.object({
   SMTP_SECURE: requiredBooleanSchema(false),
   SMTP_USER: z.string().optional().transform(emptyToUndefined),
   SMTP_PASS: z.string().optional().transform(emptyToUndefined),
+  SMTP_FROM: z.string().min(1).default("SprachPilot <no-reply@sprachpilot.local>"),
 
   AI_MODE: aiModeSchema,
   ML_SERVICE_URL: z.string().url().default("http://localhost:8081"),
@@ -79,6 +80,7 @@ export type WorkerConfig = Readonly<{
     secure: boolean;
     user: string | undefined;
     pass: string | undefined;
+    from: string;
   }>;
   ai: Readonly<{
     mode: z.infer<typeof aiModeSchema>;
@@ -131,6 +133,7 @@ function toWorkerConfig(env: z.infer<typeof workerEnvSchema>): WorkerConfig {
       secure: env.SMTP_SECURE,
       user: env.SMTP_USER,
       pass: env.SMTP_PASS,
+      from: env.SMTP_FROM,
     },
     ai: {
       mode: env.AI_MODE,

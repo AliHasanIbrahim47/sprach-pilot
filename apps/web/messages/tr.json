@@ -15,7 +15,9 @@
   "Nav": {
     "home": "Ana sayfa",
     "signIn": "Giriş yap",
-    "app": "Uygulama"
+    "app": "Uygulama",
+    "openMenu": "Menüyü aç",
+    "closeMenu": "Menüyü kapat"
   },
   "Footer": {
     "tagline": "Gerçek hayat için Almanca.",
@@ -63,7 +65,25 @@
     "needAccount": "Hesaba mı ihtiyacın var?",
     "goToSignIn": "Giriş yap",
     "goToRegister": "Hesap oluştur",
-    "signOut": "Çıkış yap"
+    "signOut": "Çıkış yap",
+    "forgotPassword": "Şifreni mi unuttun?",
+    "forgotPasswordTitle": "Şifreyi sıfırla",
+    "forgotPasswordBody": "Hesabının e-postasını gir. Hesap varsa sıfırlama yönergelerini göndeririz.",
+    "forgotPasswordSubmit": "Bağlantıyı gönder",
+    "passwordResetAccepted": "Bu e-posta için bir hesap varsa, şifre sıfırlama yönergelerini gönderdik.",
+    "resetPasswordTitle": "Yeni bir şifre seç",
+    "resetPasswordBody": "Yeni bir şifre seç. Diğer oturumlar kapatılır.",
+    "resetPasswordSubmit": "Şifreyi güncelle",
+    "passwordResetComplete": "Şifren sıfırlandı. Yeni şifrenle giriş yap.",
+    "verifyTitle": "E-postayı doğrula",
+    "emailVerified": "E-postan doğrulandı.",
+    "linkAlreadyUsed": "Bağlantı zaten kullanıldı",
+    "linkExpired": "Bu bağlantının süresi doldu. Yenisini iste.",
+    "linkInvalid": "Bu bağlantı geçersiz. Yenisini iste.",
+    "linkMissing": "E-postandaki bağlantıyı aç veya yenisini iste.",
+    "resendVerification": "Yeni bağlantı gönder",
+    "verificationSent": "Bu e-posta için bir hesap varsa, bir doğrulama bağlantısı gönderdik.",
+    "verifyToContinue": "Belge yüklemeden veya tandem ve café’ye katılmadan önce e-postanı doğrula."
   },
   "App": {
     "dashboardTitle": "Kontrol paneli",

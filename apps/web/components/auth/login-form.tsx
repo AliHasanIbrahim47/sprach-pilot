@@ -95,6 +95,15 @@ export function LoginForm({ nextPath = null }: LoginFormProps): React.JSX.Elemen
         {isSubmitting ? t("submitting") : t("signInSubmit")}
       </Button>
 
+      <p className="text-sm">
+        <Link
+          href="/forgot-password"
+          className="text-foreground underline-offset-4 hover:underline"
+        >
+          {t("forgotPassword")}
+        </Link>
+      </p>
+
       <p className="text-muted-foreground text-sm">
         {t("needAccount")}{" "}
         <Link href="/register" className="text-foreground underline-offset-4 hover:underline">

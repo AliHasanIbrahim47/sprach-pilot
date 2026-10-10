@@ -27,6 +27,7 @@ export const loginSuccessResponseSchema = z
       .object({
         id: z.string().min(1).max(64),
         displayName: z.string().min(1).max(100),
+        emailVerified: z.boolean(),
       })
       .meta({ id: "LoginUser" }),
   })

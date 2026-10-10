@@ -8,7 +8,12 @@ export async function SignOutForm(): Promise<React.JSX.Element> {
 
   return (
     <form action={logoutAccount}>
-      <Button type="submit" variant="outline" size="sm">
+      <Button
+        type="submit"
+        variant="ghost"
+        size="sm"
+        className="text-muted-foreground hover:text-foreground h-auto px-3 py-2 font-medium"
+      >
         {t("signOut")}
       </Button>
     </form>

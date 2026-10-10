@@ -19,6 +19,24 @@ export function createHealthStatus(service: WorkspaceName): HealthStatus {
 }
 
 export { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from "./auth/cookies.js";
+export type {
+  AccountResponse,
+  PasswordForgotBody,
+  PasswordResetBody,
+  PasswordResetResponse,
+  ResendVerificationBody,
+  VerifyEmailQuery,
+  VerifyEmailResponse,
+} from "./auth/email-flows.js";
+export {
+  accountResponseSchema,
+  passwordForgotBodySchema,
+  passwordResetBodySchema,
+  passwordResetResponseSchema,
+  resendVerificationBodySchema,
+  verifyEmailQuerySchema,
+  verifyEmailResponseSchema,
+} from "./auth/email-flows.js";
 export type { LoginBody, LoginSuccessResponse } from "./auth/login.js";
 export { loginBodySchema, loginSuccessResponseSchema } from "./auth/login.js";
 export { AUTH_COPY } from "./auth/messages.js";
@@ -62,6 +80,17 @@ export {
   livenessResponseSchema,
   readinessResponseSchema,
 } from "./health.js";
+export type { EmailJob, EmailTemplate } from "./jobs/email.js";
+export {
+  EMAIL_JOB_ATTEMPTS,
+  EMAIL_JOB_BACKOFF_MS,
+  EMAIL_JOB_NAME,
+  EMAIL_QUEUE_NAME,
+  emailJobSchema,
+  emailTemplateSchema,
+} from "./jobs/email.js";
+export type { UiLocale } from "./locale.js";
+export { isUiLocale, UI_LOCALES, uiLocaleSchema } from "./locale.js";
 export type { CursorPage, CursorPageMeta, CursorPaginationQuery } from "./pagination/cursor.js";
 export {
   createCursorPage,

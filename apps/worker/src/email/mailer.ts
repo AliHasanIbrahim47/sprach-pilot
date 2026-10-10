@@ -1,20 +1,19 @@
 import nodemailer from "nodemailer";
 
-import type { ApiConfig } from "../../config.js";
+import type { WorkerConfig } from "../config.js";
 
 export interface OutboundMail {
   to: string;
   subject: string;
   text: string;
+  html: string;
 }
 
 export interface Mailer {
   send(message: OutboundMail): Promise<void>;
 }
 
-const DEFAULT_FROM = "SprachPilot <no-reply@sprachpilot.local>";
-
-export function createSmtpMailer(smtp: ApiConfig["smtp"]): Mailer {
+export function createSmtpMailer(smtp: WorkerConfig["smtp"]): Mailer {
   const transport = nodemailer.createTransport({
     host: smtp.host,
     port: smtp.port,
@@ -27,10 +26,11 @@ export function createSmtpMailer(smtp: ApiConfig["smtp"]): Mailer {
   return {
     async send(message) {
       await transport.sendMail({
-        from: DEFAULT_FROM,
+        from: smtp.from,
         to: message.to,
         subject: message.subject,
         text: message.text,
+        html: message.html,
       });
     },
   };

@@ -8,10 +8,10 @@ import { type AuthOverrides, createContainer } from "../src/container.js";
 import { createMemoryUserRepository } from "../src/modules/auth/auth.repository.js";
 import { hashIp } from "../src/modules/auth/ip-hash.js";
 import { createMemoryLoginThrottle } from "../src/modules/auth/login-throttle.js";
-import type { OutboundMail } from "../src/modules/auth/mailer.js";
 import { createAuthMetrics } from "../src/modules/auth/metrics.js";
 import type { PasswordHasher } from "../src/modules/auth/password-hasher.js";
 import { createMemorySessionRepository } from "../src/modules/auth/session.repository.js";
+import { createTestEmailPorts } from "./helpers/email.js";
 import { createValidApiEnv } from "./helpers/env.js";
 
 const IP_HASH_SECRET = "integration-ip-hash-secret";
@@ -32,7 +32,7 @@ function createFakeHasher(): PasswordHasher {
 
 function createAuthApp(env: NodeJS.ProcessEnv = {}, options: { clock?: () => Date } = {}) {
   const users = createMemoryUserRepository();
-  const sent: OutboundMail[] = [];
+  const email = createTestEmailPorts();
   const metrics = createAuthMetrics();
   const auth: AuthOverrides = {
     users,
@@ -41,11 +41,9 @@ function createAuthApp(env: NodeJS.ProcessEnv = {}, options: { clock?: () => Dat
     metrics,
     hasher: createFakeHasher(),
     clock: options.clock ?? (() => new Date("2026-10-03T07:00:00.000Z")),
-    mailer: {
-      async send(message) {
-        sent.push(message);
-      },
-    },
+    emailTokens: email.emailTokens,
+    emailSends: email.emailSends,
+    emailQueue: email.emailQueue,
   };
   const config = loadConfig(
     createValidApiEnv({
@@ -60,7 +58,7 @@ function createAuthApp(env: NodeJS.ProcessEnv = {}, options: { clock?: () => Dat
     ],
     auth,
   });
-  return { app: createApp(container), users, sent, metrics };
+  return { app: createApp(container), users, jobs: email.emailQueue.jobs(), metrics, container };
 }
 
 const validBody = {
@@ -92,7 +90,7 @@ describe("auth routes", () => {
   });
 
   it("looks the same when the email already exists and does not create a second account", async () => {
-    const { app, users, sent } = createAuthApp();
+    const { app, users, jobs } = createAuthApp();
 
     const first = await request(app).post("/v1/auth/register").send(validBody);
     const second = await request(app)
@@ -106,8 +104,8 @@ describe("auth routes", () => {
     expect(second.status).toBe(first.status);
     expect(second.body).toEqual(first.body);
     expect(users.records()).toHaveLength(1);
-    expect(sent).toHaveLength(1);
-    expect(sent[0]?.to).toBe("learner@example.com");
+    expect(jobs.map((job) => job.template)).toEqual(["verify-email", "registration-notice"]);
+    expect(jobs[1]?.to).toBe("learner@example.com");
   });
 
   it("rejects password123 as too common", async () => {
@@ -221,7 +219,7 @@ describe("session cookies", () => {
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
       status: "authenticated",
-      user: { id: expect.any(String), displayName: "Ada" },
+      user: { id: expect.any(String), displayName: "Ada", emailVerified: false },
     });
     expect(response.body.accessToken).toBeUndefined();
     expect(response.body.refreshToken).toBeUndefined();
@@ -361,5 +359,74 @@ describe("session cookies", () => {
     ]);
     expect(JSON.stringify(response.body)).not.toContain("PRIVATE");
     expect(JSON.stringify(response.body)).not.toContain("MC4CAQAwBQYDK2VwBCIEILeSL");
+  });
+});
+
+describe("email verification and password reset", () => {
+  it("verifies a link once and reports that a used link was already used", async () => {
+    const { app, jobs } = createAuthApp();
+    await request(app).post("/v1/auth/register").send(validBody);
+    const token = new URL(jobs[0]?.url ?? "").searchParams.get("token");
+
+    const verified = await request(app).get("/v1/auth/verify").query({ token });
+    expect(verified.status).toBe(200);
+    expect(verified.body).toMatchObject({ status: "verified", message: AUTH_COPY.emailVerified });
+
+    const again = await request(app).get("/v1/auth/verify").query({ token });
+    expect(again.status).toBe(409);
+    expect(again.body.detail).toBe(AUTH_COPY.linkAlreadyUsed);
+    expect(again.body.errors).toEqual([
+      expect.objectContaining({ field: "token", code: "token_used" }),
+    ]);
+  });
+
+  it("keeps the forgot-password response unchanged when the fourth request sends no email", async () => {
+    const { app, jobs } = createAuthApp();
+    await request(app).post("/v1/auth/register").send(validBody);
+
+    const responses = [];
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      responses.push(
+        await request(app).post("/v1/auth/password/forgot").send({ email: validBody.email }),
+      );
+    }
+
+    expect(responses.every((response) => response.status === 202)).toBe(true);
+    expect(
+      responses.every(
+        (response) => JSON.stringify(response.body) === JSON.stringify(responses[0]?.body),
+      ),
+    ).toBe(true);
+    expect(responses[0]?.body.message).toBe(AUTH_COPY.passwordResetAccepted);
+    expect(jobs.filter((job) => job.template === "reset-password")).toHaveLength(3);
+  });
+
+  it("lets an unverified user sign in but blocks a verified-only route", async () => {
+    const { app, container, jobs } = createAuthApp({}, { clock: () => new Date() });
+    const guarded = createApp(container, {
+      registerV1(v1) {
+        v1.get("/uploads", container.requireAuth, container.requireVerifiedEmail, (_req, res) => {
+          res.status(204).end();
+        });
+      },
+    });
+    await request(app).post("/v1/auth/register").send(validBody);
+    const login = await request(app)
+      .post("/v1/auth/login")
+      .send({ email: validBody.email, password: validBody.password });
+    const accessToken = cookieValue(readSetCookies(login.headers), ACCESS_TOKEN_COOKIE);
+
+    const blocked = await request(guarded)
+      .get("/v1/uploads")
+      .set("Cookie", `${ACCESS_TOKEN_COOKIE}=${accessToken}`);
+    expect(blocked.status).toBe(403);
+    expect(blocked.body.detail).toBe(AUTH_COPY.emailVerificationRequired);
+
+    const token = new URL(jobs[0]?.url ?? "").searchParams.get("token");
+    await request(app).get("/v1/auth/verify").query({ token });
+    const allowed = await request(guarded)
+      .get("/v1/uploads")
+      .set("Cookie", `${ACCESS_TOKEN_COOKIE}=${accessToken}`);
+    expect(allowed.status).toBe(204);
   });
 });

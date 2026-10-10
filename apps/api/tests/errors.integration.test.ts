@@ -16,6 +16,7 @@ import { mapPrismaError } from "../src/infrastructure/prisma-errors.js";
 import { REQUEST_ID_HEADER } from "../src/middleware/request-id.js";
 import { validateQuery } from "../src/middleware/validate.js";
 import { createMemoryLoginThrottle } from "../src/modules/auth/login-throttle.js";
+import { createTestEmailPorts } from "./helpers/email.js";
 import { createValidApiEnv } from "./helpers/env.js";
 
 function createTestApp(env: NodeJS.ProcessEnv = {}, registerV1?: (v1: Router) => void) {
@@ -25,7 +26,7 @@ function createTestApp(env: NodeJS.ProcessEnv = {}, registerV1?: (v1: Router) =>
       { name: "database", check: async () => true },
       { name: "redis", check: async () => true },
     ],
-    auth: { throttle: createMemoryLoginThrottle() },
+    auth: { throttle: createMemoryLoginThrottle(), ...createTestEmailPorts() },
   });
   return createApp(container, { registerV1 });
 }

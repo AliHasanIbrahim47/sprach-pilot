@@ -15,7 +15,9 @@
   "Nav": {
     "home": "Start",
     "signIn": "Anmelden",
-    "app": "App"
+    "app": "App",
+    "openMenu": "Menü öffnen",
+    "closeMenu": "Menü schließen"
   },
   "Footer": {
     "tagline": "Deutsch fürs echte Leben.",
@@ -63,7 +65,25 @@
     "needAccount": "Du brauchst ein Konto?",
     "goToSignIn": "Anmelden",
     "goToRegister": "Konto erstellen",
-    "signOut": "Abmelden"
+    "signOut": "Abmelden",
+    "forgotPassword": "Passwort vergessen?",
+    "forgotPasswordTitle": "Passwort zurücksetzen",
+    "forgotPasswordBody": "Gib die E-Mail deines Kontos ein. Wenn es existiert, senden wir eine Anleitung zum Zurücksetzen.",
+    "forgotPasswordSubmit": "Link senden",
+    "passwordResetAccepted": "Wenn ein Konto für diese E-Mail existiert, haben wir eine Anleitung zum Zurücksetzen gesendet.",
+    "resetPasswordTitle": "Neues Passwort wählen",
+    "resetPasswordBody": "Wähle ein neues Passwort. Andere angemeldete Geräte werden abgemeldet.",
+    "resetPasswordSubmit": "Passwort aktualisieren",
+    "passwordResetComplete": "Dein Passwort wurde zurückgesetzt. Melde dich mit dem neuen Passwort an.",
+    "verifyTitle": "E-Mail bestätigen",
+    "emailVerified": "Deine E-Mail ist bestätigt.",
+    "linkAlreadyUsed": "Link wurde bereits verwendet",
+    "linkExpired": "Dieser Link ist abgelaufen. Fordere einen neuen an.",
+    "linkInvalid": "Dieser Link ist ungültig. Fordere einen neuen an.",
+    "linkMissing": "Öffne den Link aus deiner E-Mail oder fordere einen neuen an.",
+    "resendVerification": "Neuen Link senden",
+    "verificationSent": "Wenn ein Konto für diese E-Mail existiert, haben wir einen Bestätigungslink gesendet.",
+    "verifyToContinue": "Bestätige deine E-Mail, bevor du Dokumente hochlädst oder an Tandem und Café teilnimmst."
   },
   "App": {
     "dashboardTitle": "Dashboard",
