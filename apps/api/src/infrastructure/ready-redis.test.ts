@@ -35,6 +35,9 @@ describe("createReadyRedisCommands", () => {
       async del() {
         return 1;
       },
+      async set() {
+        return "OK";
+      },
     };
     const commands = createReadyRedisCommands(redis);
 

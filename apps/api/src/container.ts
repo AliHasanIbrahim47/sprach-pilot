@@ -10,6 +10,10 @@ import {
 } from "./infrastructure/health-checks.js";
 import { createConsoleLogger } from "./infrastructure/logger.js";
 import { createReadyRedisCommands } from "./infrastructure/ready-redis.js";
+import {
+  type AccountRepository,
+  createAccountRepository,
+} from "./modules/auth/account.repository.js";
 import { type AuthController, createAuthController } from "./modules/auth/auth.controller.js";
 import { createUserRepository, type UserRepository } from "./modules/auth/auth.repository.js";
 import { createAuthRouter, createJwksRouter } from "./modules/auth/auth.routes.js";
@@ -21,8 +25,18 @@ import {
   type EmailTokenRepository,
 } from "./modules/auth/email-token.repository.js";
 import { createEmailTokenCodec } from "./modules/auth/email-token-codec.js";
+import {
+  createGoogleOAuthProvider,
+  type GoogleOAuthProvider,
+} from "./modules/auth/google-oauth.provider.js";
 import { createRedisLoginThrottle, type LoginThrottle } from "./modules/auth/login-throttle.js";
 import { type AuthMetrics, createAuthMetrics } from "./modules/auth/metrics.js";
+import { createOAuthService, type OAuthService } from "./modules/auth/oauth.service.js";
+import {
+  createMemoryOAuthStateStore,
+  createRedisOAuthStateStore,
+  type OAuthStateStore,
+} from "./modules/auth/oauth-state.store.js";
 import { createPasswordHasher, type PasswordHasher } from "./modules/auth/password-hasher.js";
 import { createRequireAuth } from "./modules/auth/require-auth.js";
 import { createRequireVerifiedEmail } from "./modules/auth/require-verified.js";
@@ -61,6 +75,7 @@ export interface AppContainer {
 
 export interface AuthOverrides {
   users?: UserRepository;
+  accounts?: AccountRepository;
   sessions?: SessionRepository;
   tokens?: TokenService;
   throttle?: LoginThrottle;
@@ -70,6 +85,8 @@ export interface AuthOverrides {
   metrics?: AuthMetrics;
   hasher?: PasswordHasher;
   clock?: () => Date;
+  oauthState?: OAuthStateStore;
+  googleOAuth?: GoogleOAuthProvider | null;
 }
 
 export interface ContainerOverrides {
@@ -102,12 +119,18 @@ export function createContainer(
       refreshPepper: config.jwt.refreshPepper,
     });
   const users = overrides.auth?.users ?? createUserRepository();
+  const accounts = overrides.auth?.accounts ?? createAccountRepository();
+  const sessions = overrides.auth?.sessions ?? createSessionRepository();
+  const hasher = overrides.auth?.hasher ?? createPasswordHasher();
+  const clock = overrides.auth?.clock ?? (() => new Date());
   const emailTransport = resolveEmailQueue(overrides.auth?.emailQueue, config.redisUrl);
   const requireAuth = createRequireAuth(tokens);
+  const authLogger = createConsoleLogger("auth");
 
   const authService: AuthService = createAuthService({
     users,
-    sessions: overrides.auth?.sessions ?? createSessionRepository(),
+    accounts,
+    sessions,
     tokens,
     throttle: redisPorts.throttle,
     emailTokens: overrides.auth?.emailTokens ?? createEmailTokenRepository(),
@@ -116,14 +139,40 @@ export function createContainer(
     emailQueue: emailTransport.emailQueue,
     webPublicUrl: config.webPublicUrl,
     metrics,
-    hasher: overrides.auth?.hasher ?? createPasswordHasher(),
-    clock: overrides.auth?.clock ?? (() => new Date()),
+    hasher,
+    clock,
     ipHashSecret: config.ipHashSecret,
     registrationEnabled: config.features.registrationEnabled,
-    logger: createConsoleLogger("auth"),
+    logger: authLogger,
   });
+
+  const googleCredentials = config.oauth.google;
+  const googleOAuth =
+    overrides.auth?.googleOAuth !== undefined
+      ? overrides.auth.googleOAuth
+      : googleCredentials
+        ? createGoogleOAuthProvider(googleCredentials)
+        : null;
+
+  const oauthService: OAuthService = createOAuthService({
+    enabled: config.features.googleOAuthEnabled,
+    redirectUri: googleCredentials?.redirectUri ?? null,
+    google: googleOAuth,
+    users,
+    accounts,
+    sessions,
+    tokens,
+    oauthState: redisPorts.oauthState,
+    hasher,
+    metrics,
+    clock,
+    ipHashSecret: config.ipHashSecret,
+    logger: authLogger,
+  });
+
   const authController = createAuthController(
     authService,
+    oauthService,
     (req) => resolveClientIp(req, config.internalApiSecret),
     { secure: true, domain: config.cookieDomain },
     () => tokens.publicJwks(),
@@ -190,13 +239,21 @@ function resolveRedisPorts(
 ): {
   throttle: LoginThrottle;
   emailSends: EmailSendLimiter;
+  oauthState: OAuthStateStore;
   redis: Redis | undefined;
 } {
   const throttleOverride = auth?.throttle;
   const emailSendsOverride = auth?.emailSends;
+  const oauthStateOverride = auth?.oauthState;
 
+  // Tests inject throttle + email limiter and skip Redis. Default OAuth state to memory.
   if (throttleOverride && emailSendsOverride) {
-    return { throttle: throttleOverride, emailSends: emailSendsOverride, redis: undefined };
+    return {
+      throttle: throttleOverride,
+      emailSends: emailSendsOverride,
+      oauthState: oauthStateOverride ?? createMemoryOAuthStateStore(),
+      redis: undefined,
+    };
   }
 
   const redis = new Redis(config.redisUrl, {
@@ -209,6 +266,10 @@ function resolveRedisPorts(
     throttle: throttleOverride ?? createRedisLoginThrottle(commands),
     emailSends:
       emailSendsOverride ?? createRedisEmailSendLimiter(commands, { pepper: config.ipHashSecret }),
+    oauthState: oauthStateOverride ?? createRedisOAuthStateStore(commands),
     redis,
   };
 }
+
+/** Exposed for tests that need an in-memory OAuth state without Redis. */
+export { createMemoryOAuthStateStore };

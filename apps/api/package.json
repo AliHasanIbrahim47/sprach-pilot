@@ -22,6 +22,7 @@
     "express": "^5.1.0",
     "ioredis": "^5.7.0",
     "jose": "^6.2.12",
+    "openid-client": "^6.8.8",
     "zod": "^4.1.11"
   },
   "devDependencies": {
