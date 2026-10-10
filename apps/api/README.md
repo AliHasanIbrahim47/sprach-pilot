@@ -11,25 +11,29 @@ pnpm --filter @sprachpilot/api dev
 
 Default listen address: `http://localhost:3001`
 
-| Endpoint                        | Purpose                                                                                   |
-| ------------------------------- | ----------------------------------------------------------------------------------------- |
-| `GET /healthz`                  | Liveness — process is up                                                                  |
-| `GET /readyz`                   | Readiness — PostgreSQL and Redis reachable                                                |
-| `POST /v1/auth/register`        | Create an account (identical response if the email exists)                                |
-| `POST /v1/auth/login`           | Verify email and password                                                                 |
-| `POST /v1/auth/logout`          | Revoke the current session and clear auth cookies                                         |
-| `POST /v1/auth/refresh`         | Rotate the refresh token; reuse revokes the session family                                |
-| `GET /v1/auth/verify`           | Consume a single-use email verification token                                             |
-| `POST /v1/auth/verify/resend`   | Queue another verification email (same response if the address is unknown)                |
-| `POST /v1/auth/password/forgot` | Queue a password-reset email (same response if the address is unknown)                    |
-| `POST /v1/auth/password/reset`  | Set a new password and revoke every session                                               |
-| `GET /v1/auth/me`               | Current account, including whether the email is verified                                  |
-| `GET /v1/auth/sessions`         | List the caller's active device sessions                                                  |
-| `DELETE /v1/auth/sessions/:id`  | Revoke one device session                                                                 |
-| `GET /.well-known/jwks.json`    | Public Ed25519 keys for access-token verification                                         |
-| `GET /metrics`                  | Prometheus counters, including `auth_refresh_total` and `auth_token_reuse_detected_total` |
-| `GET /openapi.json`             | OpenAPI 3.1 document (non-production, or `ENABLE_API_DOCS`)                               |
-| `GET /docs`                     | Scalar API reference UI                                                                   |
+| Endpoint                              | Purpose                                                                                   |
+| ------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `GET /healthz`                        | Liveness — process is up                                                                  |
+| `GET /readyz`                         | Readiness — PostgreSQL and Redis reachable                                                |
+| `POST /v1/auth/register`              | Create an account (identical response if the email exists)                                |
+| `POST /v1/auth/login`                 | Verify email and password                                                                 |
+| `POST /v1/auth/logout`                | Revoke the current session and clear auth cookies                                         |
+| `POST /v1/auth/refresh`               | Rotate the refresh token; reuse revokes the session family                                |
+| `GET /v1/auth/verify`                 | Consume a single-use email verification token                                             |
+| `POST /v1/auth/verify/resend`         | Queue another verification email (same response if the address is unknown)                |
+| `POST /v1/auth/password/forgot`       | Queue a password-reset email (same response if the address is unknown)                    |
+| `POST /v1/auth/password/reset`        | Set a new password and revoke every session                                               |
+| `GET /v1/auth/me`                     | Current account (verification, password presence, Google link)                            |
+| `GET /v1/auth/oauth/google`           | Start Google OAuth (PKCE); behind `FEATURE_GOOGLE_OAUTH`                                  |
+| `POST /v1/auth/oauth/google/callback` | Exchange code; create/login or return `link_required`                                     |
+| `POST /v1/auth/oauth/google/link`     | Confirm password and link Google to an existing account                                   |
+| `DELETE /v1/auth/oauth/google`        | Unlink Google (requires a password on the account)                                        |
+| `GET /v1/auth/sessions`               | List the caller's active device sessions                                                  |
+| `DELETE /v1/auth/sessions/:id`        | Revoke one device session                                                                 |
+| `GET /.well-known/jwks.json`          | Public Ed25519 keys for access-token verification                                         |
+| `GET /metrics`                        | Prometheus counters, including `auth_refresh_total` and `auth_token_reuse_detected_total` |
+| `GET /openapi.json`                   | OpenAPI 3.1 document (non-production, or `ENABLE_API_DOCS`)                               |
+| `GET /docs`                           | Scalar API reference UI                                                                   |
 
 Config is validated with Zod at startup (see [`.env.example`](./.env.example)). `DATABASE_URL`, `REDIS_URL`, S3, SMTP, and `IP_HASH_SECRET` are required. Local `apps/api/.env` is loaded automatically; process env still wins.
 
@@ -99,3 +103,7 @@ A bundled NCSC common-password list (length ≥ 10) rejects passwords such as `p
 ## Sessions (SP-013)
 
 Login, refresh, and logout set `sp_access` (EdDSA JWT, 15 minutes) and `sp_refresh` (opaque, 30 days) as `httpOnly`, `Secure`, `SameSite=Lax` cookies. The JSON body never contains either token. Refresh tokens are stored as an HMAC (`JWT_REFRESH_PEPPER`). Presenting a refresh token that was already rotated returns **401**, revokes that session family, and increments `auth_token_reuse_detected_total`. Access-token checks use the JWKS public key and do not hit the database. See [`docs/security/session-tokens.md`](../../docs/security/session-tokens.md).
+
+## Google OAuth (SP-015)
+
+Optional. Enable with `FEATURE_GOOGLE_OAUTH=true` and set `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, and `GOOGLE_OAUTH_REDIRECT_URI` (typically `http://localhost:3000/api/auth/callback/google`). The Authorization Code flow uses `openid-client` with PKCE, `state`, and `nonce`. New Google users are created as verified learners with a null password hash and a row in `accounts`. An email that already belongs to a password account returns `link_required` until `POST /v1/auth/oauth/google/link` confirms the password.

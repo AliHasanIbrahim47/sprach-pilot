@@ -4,12 +4,13 @@ import { isUiLocale, type UiLocale } from "@sprachpilot/shared";
 export interface AuthUserRecord {
   id: string;
   email: string;
-  passwordHash: string;
+  passwordHash: string | null;
   displayName: string;
   role: string;
   deletedAt: Date | null;
   emailVerifiedAt: Date | null;
   uiLocale: UiLocale;
+  onboardingCompletedAt: Date | null;
 }
 
 export interface ConsentDraft {
@@ -21,9 +22,10 @@ export interface ConsentDraft {
 
 export interface CreateUserInput {
   email: string;
-  passwordHash: string;
+  passwordHash: string | null;
   displayName: string;
   uiLocale: UiLocale;
+  emailVerifiedAt?: Date | null;
   consents: readonly ConsentDraft[];
 }
 
@@ -50,12 +52,13 @@ function readLocale(value: string | null | undefined): UiLocale {
 function toRecord(user: {
   id: string;
   email: string;
-  passwordHash: string;
+  passwordHash: string | null;
   displayName: string;
   role: string;
   deletedAt: Date | null;
   emailVerifiedAt: Date | null;
   uiLocale: string;
+  onboardingCompletedAt: Date | null;
 }): AuthUserRecord {
   return {
     id: user.id,
@@ -66,20 +69,23 @@ function toRecord(user: {
     deletedAt: user.deletedAt,
     emailVerifiedAt: user.emailVerifiedAt,
     uiLocale: readLocale(user.uiLocale),
+    onboardingCompletedAt: user.onboardingCompletedAt,
   };
 }
 
-const userInclude = { profile: { select: { uiLocale: true } } } as const;
+const userInclude = {
+  profile: { select: { uiLocale: true, onboardingCompletedAt: true } },
+} as const;
 
 function fromPrisma(user: {
   id: string;
   email: string;
-  passwordHash: string;
+  passwordHash: string | null;
   displayName: string;
   role: string;
   deletedAt: Date | null;
   emailVerifiedAt: Date | null;
-  profile: { uiLocale: string } | null;
+  profile: { uiLocale: string; onboardingCompletedAt: Date | null } | null;
 }): AuthUserRecord {
   return toRecord({
     id: user.id,
@@ -90,6 +96,7 @@ function fromPrisma(user: {
     deletedAt: user.deletedAt,
     emailVerifiedAt: user.emailVerifiedAt,
     uiLocale: user.profile?.uiLocale ?? "en",
+    onboardingCompletedAt: user.profile?.onboardingCompletedAt ?? null,
   });
 }
 
@@ -112,6 +119,7 @@ export function createUserRepository(client: PrismaClient = prisma): UserReposit
             email: input.email,
             passwordHash: input.passwordHash,
             displayName: input.displayName,
+            emailVerifiedAt: input.emailVerifiedAt ?? null,
             profile: { create: { uiLocale: input.uiLocale } },
             consentRecords: {
               create: input.consents.map((consent) => ({
@@ -168,8 +176,9 @@ export function createMemoryUserRepository(): MemoryUserRepository {
         displayName: input.displayName,
         role: "learner",
         deletedAt: null,
-        emailVerifiedAt: null,
+        emailVerifiedAt: input.emailVerifiedAt ?? null,
         uiLocale: input.uiLocale,
+        onboardingCompletedAt: null as Date | null,
         consents: [...input.consents],
       };
       users.set(input.email, record);

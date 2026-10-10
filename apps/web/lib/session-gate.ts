@@ -25,6 +25,8 @@ export function isProtectedAppPath(pathname: string): boolean {
   return (
     path === "/dashboard" ||
     path.startsWith("/dashboard/") ||
+    path === "/onboarding" ||
+    path.startsWith("/onboarding/") ||
     path === "/app" ||
     path.startsWith("/app/")
   );

@@ -43,8 +43,8 @@ model User {
   /// @pii — store normalized (lowercase, trimmed); uniqueness is case-sensitive at DB level
   email String @unique
 
-  /// @pii — argon2id hash; never log
-  passwordHash String @map("password_hash")
+  /// @pii — argon2id hash; never log. Null for OAuth-only accounts (SP-015).
+  passwordHash String? @map("password_hash")
 
   /// @pii
   displayName String @map("display_name")
@@ -58,6 +58,7 @@ model User {
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
 
   profile        Profile?
+  accounts       Account[]
   auditLogs      AuditLog[]      @relation("AuditActor")
   consentRecords ConsentRecord[]
   sessions       Session[]
@@ -67,6 +68,27 @@ model User {
   @@index([role], map: "users_role_idx")
   @@index([deletedAt], map: "users_deleted_at_idx")
   @@map("users")
+}
+
+/// Linked identity provider account (SP-015). One row per provider subject.
+model Account {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  userId String @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// e.g. `google`
+  provider String
+
+  /// Subject from the IdP (`sub` claim). Unique with provider.
+  providerAccountId String @map("provider_account_id")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([provider, providerAccountId], map: "accounts_provider_provider_account_id_key")
+  @@index([userId], map: "accounts_user_id_idx")
+  @@map("accounts")
 }
 
 model Profile {

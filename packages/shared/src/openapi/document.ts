@@ -12,6 +12,12 @@ import {
 } from "../auth/email-flows.js";
 import { loginBodySchema, loginSuccessResponseSchema } from "../auth/login.js";
 import { AUTH_COPY } from "../auth/messages.js";
+import {
+  oauthAuthenticatedResponseSchema,
+  oauthCallbackResponseSchema,
+  oauthGoogleCallbackBodySchema,
+  oauthGoogleLinkBodySchema,
+} from "../auth/oauth.js";
 import { registerAcceptedResponseSchema, registerBodySchema } from "../auth/register.js";
 import { refreshSuccessResponseSchema, sessionListResponseSchema } from "../auth/sessions.js";
 import { problemDetailsSchema } from "../errors/problem-details.js";
@@ -378,7 +384,8 @@ openApiRegistry.registerPath({
   path: "/v1/auth/me",
   tags: ["Auth"],
   summary: "Current account",
-  description: "Returns the signed-in account, including whether the email is verified.",
+  description:
+    "Returns the signed-in account, including email verification, password presence, and Google link status.",
   responses: {
     200: {
       description: "Current account",
@@ -387,6 +394,116 @@ openApiRegistry.registerPath({
           schema: accountResponseSchema,
         },
       },
+    },
+    401: {
+      description: "Missing or expired access token",
+      content: problemResponse.content,
+    },
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "get",
+  path: "/v1/auth/oauth/google",
+  tags: ["Auth"],
+  summary: "Start Google OAuth",
+  description:
+    "Redirects to Google with PKCE, state, and nonce. Behind FEATURE_GOOGLE_OAUTH and configured credentials.",
+  responses: {
+    302: { description: "Redirect to Google authorization endpoint" },
+    403: {
+      description: AUTH_COPY.oauthDisabled,
+      content: problemResponse.content,
+    },
+    502: {
+      description: AUTH_COPY.oauthUnavailable,
+      content: problemResponse.content,
+    },
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "post",
+  path: "/v1/auth/oauth/google/callback",
+  tags: ["Auth"],
+  summary: "Complete Google OAuth",
+  description:
+    "Exchanges the authorization code, validates state/nonce/PKCE and the ID token, then creates a session or asks for password confirmation to link.",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: oauthGoogleCallbackBodySchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Authenticated session or link confirmation required",
+      content: {
+        "application/json": {
+          schema: oauthCallbackResponseSchema,
+        },
+      },
+    },
+    401: {
+      description: AUTH_COPY.oauthFailed,
+      content: problemResponse.content,
+    },
+    403: {
+      description: AUTH_COPY.oauthDisabled,
+      content: problemResponse.content,
+    },
+    502: {
+      description: AUTH_COPY.oauthUnavailable,
+      content: problemResponse.content,
+    },
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "post",
+  path: "/v1/auth/oauth/google/link",
+  tags: ["Auth"],
+  summary: "Confirm Google account link",
+  description: "Confirms the password for an existing account and links the Google identity.",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: oauthGoogleLinkBodySchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Linked and authenticated",
+      content: {
+        "application/json": {
+          schema: oauthAuthenticatedResponseSchema,
+        },
+      },
+    },
+    401: {
+      description: AUTH_COPY.invalidCredentials,
+      content: problemResponse.content,
+    },
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "delete",
+  path: "/v1/auth/oauth/google",
+  tags: ["Auth"],
+  summary: "Unlink Google",
+  description: "Removes the Google link when the account still has a password.",
+  responses: {
+    204: { description: "Google unlinked" },
+    400: {
+      description: AUTH_COPY.oauthUnlinkNeedsPassword,
+      content: problemResponse.content,
     },
     401: {
       description: "Missing or expired access token",

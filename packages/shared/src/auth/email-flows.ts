@@ -70,6 +70,8 @@ export const accountResponseSchema = z
     email: z.string().email().max(320),
     emailVerified: z.boolean(),
     locale: z.enum(UI_LOCALES),
+    hasPassword: z.boolean(),
+    googleLinked: z.boolean(),
   })
   .meta({ id: "AccountResponse" });
 

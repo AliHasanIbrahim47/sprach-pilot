@@ -15,4 +15,11 @@ export const AUTH_COPY = {
   passwordResetComplete: "Your password has been reset. Sign in with the new password.",
   emailVerified: "Your email is verified.",
   emailVerificationRequired: "Verify your email to use this feature.",
+  oauthUnavailable: "Google sign-in is temporarily unavailable. Try again later.",
+  oauthFailed: "Google sign-in failed. Try again or use email and password.",
+  oauthStateInvalid: "Google sign-in failed. Start again from the sign-in page.",
+  oauthLinkRequired: "Confirm your password to link Google to this account.",
+  oauthUnlinkNeedsPassword: "Set a password before unlinking Google.",
+  oauthNotLinked: "Google is not linked to this account.",
+  oauthDisabled: "Google sign-in is not enabled.",
 } as const;

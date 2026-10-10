@@ -2,6 +2,8 @@
 
 import type {
   LoginBody,
+  OAuthAuthenticatedResponse,
+  OAuthGoogleLinkBody,
   PasswordForgotBody,
   PasswordResetBody,
   RegisterBody,
@@ -9,6 +11,7 @@ import type {
 import {
   ACCESS_TOKEN_COOKIE,
   loginBodySchema,
+  oauthGoogleLinkBodySchema,
   passwordForgotBodySchema,
   passwordResetBodySchema,
   REFRESH_TOKEN_COOKIE,
@@ -122,6 +125,26 @@ export async function resendVerification(input: { email?: string }): Promise<Aut
       forwardCookies: parsed.data.email === undefined,
     });
     return { ok: true, intent: "resend" };
+  } catch (error) {
+    return mapAuthError(error);
+  }
+}
+
+export async function linkGoogleAccount(input: OAuthGoogleLinkBody): Promise<AuthActionResult> {
+  const parsed = oauthGoogleLinkBodySchema.safeParse(input);
+  if (!parsed.success) {
+    return validationResult(zodIssuesToFieldErrors(parsed.error.issues));
+  }
+
+  try {
+    const result = await apiFetch<OAuthAuthenticatedResponse>("/v1/auth/oauth/google/link", {
+      method: "POST",
+      headers: await requestHeaders(),
+      body: JSON.stringify(parsed.data),
+      forwardCookies: false,
+      applyAuthCookies: true,
+    });
+    return { ok: true, intent: "oauth-link", needsOnboarding: result.needsOnboarding };
   } catch (error) {
     return mapAuthError(error);
   }

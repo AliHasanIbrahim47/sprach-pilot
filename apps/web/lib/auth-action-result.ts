@@ -6,7 +6,11 @@ export type AuthActionCode =
 export type EmailLinkStatus = "used" | "expired" | "invalid";
 
 export type AuthActionResult =
-  | { ok: true; intent: "register" | "login" | "forgot" | "resend" | "reset" }
+  | {
+      ok: true;
+      intent: "register" | "login" | "forgot" | "resend" | "reset" | "oauth-link";
+      needsOnboarding?: boolean;
+    }
   | {
       ok: false;
       code: AuthActionCode;

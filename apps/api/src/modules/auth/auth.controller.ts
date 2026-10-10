@@ -1,5 +1,7 @@
 import type {
   LoginBody,
+  OAuthGoogleCallbackBody,
+  OAuthGoogleLinkBody,
   PasswordForgotBody,
   PasswordResetBody,
   RegisterBody,
@@ -22,6 +24,7 @@ import {
   readRequestCookie,
   setSessionCookies,
 } from "./auth-cookies.js";
+import type { OAuthService } from "./oauth.service.js";
 import { getRequestAuth } from "./require-auth.js";
 
 export interface AuthController {
@@ -36,11 +39,16 @@ export interface AuthController {
   forgotPassword(req: Request, res: Response): Promise<void>;
   resetPassword(req: Request, res: Response): Promise<void>;
   me(req: Request, res: Response): Promise<void>;
+  oauthGoogleStart(req: Request, res: Response): Promise<void>;
+  oauthGoogleCallback(req: Request, res: Response): Promise<void>;
+  oauthGoogleLink(req: Request, res: Response): Promise<void>;
+  oauthGoogleUnlink(req: Request, res: Response): Promise<void>;
   jwks(req: Request, res: Response): void;
 }
 
 export function createAuthController(
   service: AuthService,
+  oauth: OAuthService,
   resolveIp: (req: Request) => string,
   cookieOptions: AuthCookieOptions,
   jwksDocument: () => unknown,
@@ -163,6 +171,59 @@ export function createAuthController(
       res.status(200).json(result);
     },
 
+    async oauthGoogleStart(req, res) {
+      const returnTo = readOptionalString(req.query["returnTo"]);
+      const locale = readOptionalString(req.query["locale"]) ?? req.get("x-ui-locale")?.trim();
+      const result = await oauth.start({
+        ...(returnTo !== undefined ? { returnTo } : {}),
+        ...(locale !== undefined ? { locale } : {}),
+      });
+      noStore(res);
+      res.redirect(302, result.authorizationUrl);
+    },
+
+    async oauthGoogleCallback(req, res) {
+      const body = req.body as OAuthGoogleCallbackBody;
+      const result = await oauth.callback(body, requestContext(req, resolveIp));
+      noStore(res);
+      if (result.status === "link_required") {
+        res.status(200).json({
+          status: result.status,
+          linkToken: result.linkToken,
+          email: result.email,
+          locale: result.locale,
+        });
+        return;
+      }
+      setSessionCookies(res, result.credentials, cookieOptions);
+      res.status(200).json({
+        status: result.status,
+        needsOnboarding: result.needsOnboarding,
+        locale: result.locale,
+        user: result.user,
+      });
+    },
+
+    async oauthGoogleLink(req, res) {
+      const body = req.body as OAuthGoogleLinkBody;
+      const result = await oauth.confirmLink(body, requestContext(req, resolveIp));
+      setSessionCookies(res, result.credentials, cookieOptions);
+      noStore(res);
+      res.status(200).json({
+        status: result.status,
+        needsOnboarding: result.needsOnboarding,
+        locale: result.locale,
+        user: result.user,
+      });
+    },
+
+    async oauthGoogleUnlink(req, res) {
+      const auth = getRequestAuth(req);
+      await oauth.unlink(auth.sub);
+      noStore(res);
+      res.status(204).end();
+    },
+
     jwks(_req, res) {
       res.status(200).json(jwksDocument());
     },
@@ -172,7 +233,7 @@ export function createAuthController(
 function requestContext(
   req: Request,
   resolveIp: (req: Request) => string,
-): { ip: string; userAgent?: string } {
+): { ip: string; userAgent?: string; locale?: string } {
   const userAgent = req.get("user-agent");
   const locale = req.get("x-ui-locale")?.trim();
   return {
@@ -187,6 +248,14 @@ function readSessionId(req: Request): string {
   const sessionId = Array.isArray(raw) ? raw[0] : raw;
   if (!sessionId) throw new NotFoundError("Session not found");
   return sessionId;
+}
+
+function readOptionalString(value: unknown): string | undefined {
+  if (typeof value === "string" && value.trim().length > 0) return value.trim();
+  if (Array.isArray(value) && typeof value[0] === "string" && value[0].trim().length > 0) {
+    return value[0].trim();
+  }
+  return undefined;
 }
 
 function noStore(res: Response): void {

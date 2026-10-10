@@ -83,11 +83,23 @@
     "linkMissing": "افتح الرابط من بريدك أو اطلب رابطاً جديداً.",
     "resendVerification": "إرسال رابط جديد",
     "verificationSent": "إذا وُجد حساب لهذا البريد، فقد أرسلنا رابط تأكيد.",
-    "verifyToContinue": "أكّد بريدك قبل رفع المستندات أو الانضمام إلى الترادف والمقهى."
+    "verifyToContinue": "أكّد بريدك قبل رفع المستندات أو الانضمام إلى الترادف والمقهى.",
+    "orDivider": "أو",
+    "continueWithGoogle": "المتابعة مع Google",
+    "oauthUnavailable": "تسجيل الدخول عبر Google غير متاح مؤقتاً. حاول لاحقاً.",
+    "oauthFailed": "فشل تسجيل الدخول عبر Google. حاول مجدداً أو استخدم البريد وكلمة المرور.",
+    "oauthDisabled": "تسجيل الدخول عبر Google غير مفعّل.",
+    "oauthStateInvalid": "فشل تسجيل الدخول عبر Google. ابدأ مجدداً من صفحة تسجيل الدخول.",
+    "linkGoogleTitle": "ربط Google",
+    "linkGoogleIntro": "أكّد كلمة المرور لربط Google بهذا الحساب.",
+    "linkGoogleBody": "أكّد كلمة مرور {email} لإنهاء ربط Google.",
+    "linkGoogleSubmit": "اربط Google وسجّل الدخول"
   },
   "App": {
     "dashboardTitle": "لوحة التحكم",
     "dashboardBody": "عنصر نائب لتطبيق المصادقة. صفحات الميزات تأتي لاحقاً.",
+    "onboardingTitle": "مرحباً",
+    "onboardingBody": "التأهيل وتحديد مستوى CEFR يأتيان لاحقاً. يمكنك استكشاف التطبيق من لوحة التحكم الآن.",
     "decksTitle": "البطاقات",
     "decksBody": "ستظهر بطاقاتك هنا."
   },

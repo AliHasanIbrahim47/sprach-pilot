@@ -40,6 +40,21 @@ export {
 export type { LoginBody, LoginSuccessResponse } from "./auth/login.js";
 export { loginBodySchema, loginSuccessResponseSchema } from "./auth/login.js";
 export { AUTH_COPY } from "./auth/messages.js";
+export type {
+  OAuthAuthenticatedResponse,
+  OAuthCallbackResponse,
+  OAuthGoogleCallbackBody,
+  OAuthGoogleLinkBody,
+  OAuthLinkRequiredResponse,
+} from "./auth/oauth.js";
+export {
+  GOOGLE_OAUTH_PROVIDER,
+  oauthAuthenticatedResponseSchema,
+  oauthCallbackResponseSchema,
+  oauthGoogleCallbackBodySchema,
+  oauthGoogleLinkBodySchema,
+  oauthLinkRequiredResponseSchema,
+} from "./auth/oauth.js";
 export type { RegisterAcceptedResponse, RegisterBody } from "./auth/register.js";
 export { registerAcceptedResponseSchema, registerBodySchema } from "./auth/register.js";
 export type { AuthSession, RefreshSuccessResponse, SessionListResponse } from "./auth/sessions.js";

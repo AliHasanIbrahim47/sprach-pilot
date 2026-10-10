@@ -1,5 +1,6 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
+import { GoogleContinueButton } from "@/components/auth/google-continue-button";
 import { RegisterForm } from "@/components/auth/register-form";
 
 interface RegisterPageProps {
@@ -20,6 +21,7 @@ export default async function RegisterPage({
         <p className="text-muted-foreground text-sm">{t("registerBody")}</p>
       </div>
       <RegisterForm />
+      <GoogleContinueButton returnTo="/onboarding" />
     </div>
   );
 }

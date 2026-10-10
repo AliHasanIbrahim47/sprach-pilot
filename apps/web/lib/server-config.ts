@@ -19,8 +19,7 @@ const requiredBooleanSchema = (fallback: boolean) =>
 const serverEnvSchema = z.object({
   API_BASE_URL: z.string().url("must be a valid URL").default("http://localhost:3001"),
   FEATURE_REGISTRATION_ENABLED: requiredBooleanSchema(true),
-  GOOGLE_OAUTH_CLIENT_ID: z.string().optional().transform(emptyToUndefined),
-  GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional().transform(emptyToUndefined),
+  FEATURE_GOOGLE_OAUTH: requiredBooleanSchema(false),
   INTERNAL_API_SECRET: z.string().optional().transform(emptyToUndefined),
 });
 
@@ -28,15 +27,12 @@ export type ServerConfig = Readonly<{
   apiBaseUrl: string;
   features: Readonly<{
     registrationEnabled: boolean;
-  }>;
-  oauth: Readonly<{
-    googleClientId: string | undefined;
-    googleClientSecret: string | undefined;
+    googleOAuthEnabled: boolean;
   }>;
   internalApiSecret: string | undefined;
 }>;
 
-const SECRET_KEYS = new Set(["googleClientSecret", "internalApiSecret"]);
+const SECRET_KEYS = new Set(["internalApiSecret"]);
 
 function deepFreeze<T>(value: T): T {
   if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
@@ -60,8 +56,7 @@ export function loadServerConfig(env: NodeJS.ProcessEnv = process.env): ServerCo
   const result = serverEnvSchema.safeParse({
     API_BASE_URL: env["API_BASE_URL"],
     FEATURE_REGISTRATION_ENABLED: env["FEATURE_REGISTRATION_ENABLED"],
-    GOOGLE_OAUTH_CLIENT_ID: env["GOOGLE_OAUTH_CLIENT_ID"],
-    GOOGLE_OAUTH_CLIENT_SECRET: env["GOOGLE_OAUTH_CLIENT_SECRET"],
+    FEATURE_GOOGLE_OAUTH: env["FEATURE_GOOGLE_OAUTH"],
     INTERNAL_API_SECRET: env["INTERNAL_API_SECRET"],
   });
   if (!result.success) {
@@ -72,10 +67,7 @@ export function loadServerConfig(env: NodeJS.ProcessEnv = process.env): ServerCo
     apiBaseUrl: result.data.API_BASE_URL,
     features: {
       registrationEnabled: result.data.FEATURE_REGISTRATION_ENABLED,
-    },
-    oauth: {
-      googleClientId: result.data.GOOGLE_OAUTH_CLIENT_ID,
-      googleClientSecret: result.data.GOOGLE_OAUTH_CLIENT_SECRET,
+      googleOAuthEnabled: result.data.FEATURE_GOOGLE_OAUTH,
     },
     internalApiSecret: result.data.INTERNAL_API_SECRET,
   });

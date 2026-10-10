@@ -83,11 +83,23 @@
     "linkMissing": "Open the link from your email, or request a new one.",
     "resendVerification": "Send a new link",
     "verificationSent": "If an account exists for that email, we sent a verification link.",
-    "verifyToContinue": "Verify your email before uploading documents or joining tandem and café."
+    "verifyToContinue": "Verify your email before uploading documents or joining tandem and café.",
+    "orDivider": "or",
+    "continueWithGoogle": "Continue with Google",
+    "oauthUnavailable": "Google sign-in is temporarily unavailable. Try again later.",
+    "oauthFailed": "Google sign-in failed. Try again or use email and password.",
+    "oauthDisabled": "Google sign-in is not enabled.",
+    "oauthStateInvalid": "Google sign-in failed. Start again from the sign-in page.",
+    "linkGoogleTitle": "Link Google",
+    "linkGoogleIntro": "Confirm your password to link Google to this account.",
+    "linkGoogleBody": "Confirm the password for {email} to finish linking Google.",
+    "linkGoogleSubmit": "Link Google and sign in"
   },
   "App": {
     "dashboardTitle": "Dashboard",
     "dashboardBody": "Authenticated app shell placeholder. Feature pages land in later tickets.",
+    "onboardingTitle": "Welcome",
+    "onboardingBody": "Onboarding and CEFR placement arrive in a later ticket. You can explore the app from the dashboard for now.",
     "decksTitle": "Decks",
     "decksBody": "Your decks will show up here."
   },

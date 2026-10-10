@@ -108,6 +108,8 @@ const apiEnvSchema = z.object({
   LANGUAGETOOL_URL: z.string().url().default("http://localhost:8010"),
 
   FEATURE_REGISTRATION_ENABLED: requiredBooleanSchema(true),
+  /** When true and Google OAuth credentials are set, Google sign-in is available (SP-015). */
+  FEATURE_GOOGLE_OAUTH: requiredBooleanSchema(false),
   WEB_PUBLIC_URL: z.string().url().default("http://localhost:3000"),
 
   /** HMAC pepper for client IP hashes. Required; never log the value. */
@@ -161,6 +163,7 @@ export type ApiConfig = Readonly<{
   }>;
   features: Readonly<{
     registrationEnabled: boolean;
+    googleOAuthEnabled: boolean;
   }>;
   webPublicUrl: string;
   ipHashSecret: string;
@@ -292,6 +295,7 @@ function toApiConfig(env: z.infer<typeof apiEnvSchema>): ApiConfig {
     },
     features: {
       registrationEnabled: env.FEATURE_REGISTRATION_ENABLED,
+      googleOAuthEnabled: env.FEATURE_GOOGLE_OAUTH && googleOAuth !== null,
     },
     webPublicUrl: env.WEB_PUBLIC_URL,
     ipHashSecret: env.IP_HASH_SECRET,

@@ -364,9 +364,134 @@
           "locale": {
             "type": "string",
             "enum": ["en", "de", "ar", "uk", "tr"]
+          },
+          "hasPassword": {
+            "type": "boolean"
+          },
+          "googleLinked": {
+            "type": "boolean"
           }
         },
-        "required": ["id", "displayName", "email", "emailVerified", "locale"]
+        "required": [
+          "id",
+          "displayName",
+          "email",
+          "emailVerified",
+          "locale",
+          "hasPassword",
+          "googleLinked"
+        ]
+      },
+      "OAuthCallbackResponse": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/OAuthAuthenticatedResponse"
+          },
+          {
+            "$ref": "#/components/schemas/OAuthLinkRequiredResponse"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "status",
+          "mapping": {
+            "authenticated": "#/components/schemas/OAuthAuthenticatedResponse",
+            "link_required": "#/components/schemas/OAuthLinkRequiredResponse"
+          }
+        }
+      },
+      "OAuthAuthenticatedResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["authenticated"]
+          },
+          "needsOnboarding": {
+            "type": "boolean"
+          },
+          "locale": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 8
+          },
+          "user": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "displayName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "emailVerified": {
+                "type": "boolean"
+              }
+            },
+            "required": ["id", "displayName", "emailVerified"]
+          }
+        },
+        "required": ["status", "needsOnboarding", "locale", "user"]
+      },
+      "OAuthLinkRequiredResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["link_required"]
+          },
+          "linkToken": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 256
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 320,
+            "format": "email"
+          },
+          "locale": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 8
+          }
+        },
+        "required": ["status", "linkToken", "email", "locale"]
+      },
+      "OAuthGoogleCallbackBody": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "state": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          }
+        },
+        "required": ["code", "state"]
+      },
+      "OAuthGoogleLinkBody": {
+        "type": "object",
+        "properties": {
+          "linkToken": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 256
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": ["linkToken", "password"]
       }
     },
     "parameters": {}
@@ -883,7 +1008,7 @@
       "get": {
         "tags": ["Auth"],
         "summary": "Current account",
-        "description": "Returns the signed-in account, including whether the email is verified.",
+        "description": "Returns the signed-in account, including email verification, password presence, and Google link status.",
         "responses": {
           "200": {
             "description": "Current account",
@@ -897,6 +1022,164 @@
           },
           "401": {
             "description": "Missing or expired access token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/oauth/google": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Start Google OAuth",
+        "description": "Redirects to Google with PKCE, state, and nonce. Behind FEATURE_GOOGLE_OAUTH and configured credentials.",
+        "responses": {
+          "302": {
+            "description": "Redirect to Google authorization endpoint"
+          },
+          "403": {
+            "description": "Google sign-in is not enabled.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Google sign-in is temporarily unavailable. Try again later.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Auth"],
+        "summary": "Unlink Google",
+        "description": "Removes the Google link when the account still has a password.",
+        "responses": {
+          "204": {
+            "description": "Google unlinked"
+          },
+          "400": {
+            "description": "Set a password before unlinking Google.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or expired access token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/oauth/google/callback": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Complete Google OAuth",
+        "description": "Exchanges the authorization code, validates state/nonce/PKCE and the ID token, then creates a session or asks for password confirmation to link.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OAuthGoogleCallbackBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authenticated session or link confirmation required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthCallbackResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Google sign-in failed. Try again or use email and password.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Google sign-in is not enabled.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Google sign-in is temporarily unavailable. Try again later.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/oauth/google/link": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Confirm Google account link",
+        "description": "Confirms the password for an existing account and links the Google identity.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OAuthGoogleLinkBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Linked and authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthAuthenticatedResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Email or password is incorrect",
             "content": {
               "application/problem+json": {
                 "schema": {

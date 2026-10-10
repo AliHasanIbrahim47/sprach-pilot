@@ -1,4 +1,5 @@
 import type { RedisCounterClient } from "../modules/auth/login-throttle.js";
+import type { RedisKvClient } from "../modules/auth/oauth-state.store.js";
 
 export interface LazyRedisConnection {
   status: string;
@@ -8,6 +9,7 @@ export interface LazyRedisConnection {
   expire(key: string, seconds: number): Promise<number>;
   ttl(key: string): Promise<number>;
   del(key: string): Promise<number>;
+  set(key: string, value: string, mode: "EX", seconds: number): Promise<string | null>;
 }
 
 /**
@@ -15,7 +17,7 @@ export interface LazyRedisConnection {
  * the socket is still opening. The connection attempt continues, so the next
  * request succeeds. Wait for that first connect before issuing a command.
  */
-export function createReadyRedisCommands(redis: LazyRedisConnection): RedisCounterClient {
+export function createReadyRedisCommands(redis: LazyRedisConnection): RedisKvClient {
   let opening: Promise<void> | undefined;
 
   async function ready(): Promise<void> {
@@ -53,5 +55,11 @@ export function createReadyRedisCommands(redis: LazyRedisConnection): RedisCount
       await ready();
       return redis.del(key);
     },
+    async set(key, value, mode, seconds) {
+      await ready();
+      return redis.set(key, value, mode, seconds);
+    },
   };
 }
+
+export type { RedisCounterClient };
