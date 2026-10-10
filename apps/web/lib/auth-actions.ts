@@ -1,11 +1,19 @@
 "use server";
 
-import type { LoginBody, RegisterBody } from "@sprachpilot/shared";
+import type {
+  LoginBody,
+  PasswordForgotBody,
+  PasswordResetBody,
+  RegisterBody,
+} from "@sprachpilot/shared";
 import {
   ACCESS_TOKEN_COOKIE,
   loginBodySchema,
+  passwordForgotBodySchema,
+  passwordResetBodySchema,
   REFRESH_TOKEN_COOKIE,
   registerBodySchema,
+  resendVerificationBodySchema,
 } from "@sprachpilot/shared";
 import { cookies, headers } from "next/headers";
 import { getLocale } from "next-intl/server";
@@ -20,6 +28,7 @@ import {
   normalizeFieldCode,
   zodIssuesToFieldErrors,
 } from "./auth-field-errors";
+import { emailLinkStatusFromBody } from "./email-link-status";
 import { serverConfig } from "./server-config";
 
 export async function registerAccount(input: RegisterBody): Promise<AuthActionResult> {
@@ -61,6 +70,63 @@ export async function loginAccount(input: LoginBody): Promise<AuthActionResult> 
   }
 }
 
+export async function requestPasswordReset(input: PasswordForgotBody): Promise<AuthActionResult> {
+  const parsed = passwordForgotBodySchema.safeParse(input);
+  if (!parsed.success) {
+    return validationResult(zodIssuesToFieldErrors(parsed.error.issues));
+  }
+
+  try {
+    await apiFetch("/v1/auth/password/forgot", {
+      method: "POST",
+      headers: await requestHeaders(),
+      body: JSON.stringify(parsed.data),
+      forwardCookies: false,
+    });
+    return { ok: true, intent: "forgot" };
+  } catch (error) {
+    return mapAuthError(error);
+  }
+}
+
+export async function resetPassword(input: PasswordResetBody): Promise<AuthActionResult> {
+  const parsed = passwordResetBodySchema.safeParse(input);
+  if (!parsed.success) {
+    return validationResult(zodIssuesToFieldErrors(parsed.error.issues));
+  }
+
+  try {
+    await apiFetch("/v1/auth/password/reset", {
+      method: "POST",
+      headers: await requestHeaders(),
+      body: JSON.stringify(parsed.data),
+      forwardCookies: false,
+    });
+    return { ok: true, intent: "reset" };
+  } catch (error) {
+    return mapLinkError(error);
+  }
+}
+
+export async function resendVerification(input: { email?: string }): Promise<AuthActionResult> {
+  const parsed = resendVerificationBodySchema.safeParse(input);
+  if (!parsed.success) {
+    return validationResult(zodIssuesToFieldErrors(parsed.error.issues));
+  }
+
+  try {
+    await apiFetch("/v1/auth/verify/resend", {
+      method: "POST",
+      headers: await requestHeaders(),
+      body: JSON.stringify(parsed.data),
+      forwardCookies: parsed.data.email === undefined,
+    });
+    return { ok: true, intent: "resend" };
+  } catch (error) {
+    return mapAuthError(error);
+  }
+}
+
 export async function logoutAccount(): Promise<void> {
   try {
     await apiFetch("/v1/auth/logout", {
@@ -83,7 +149,10 @@ function validationResult(fieldErrors: AuthFieldErrors): AuthActionResult {
 }
 
 async function requestHeaders(): Promise<Headers> {
-  const requestHeaders = new Headers({ "content-type": "application/json" });
+  const requestHeaders = new Headers({
+    "content-type": "application/json",
+    "x-ui-locale": await getLocale(),
+  });
   const secret = serverConfig.internalApiSecret;
   if (!secret) return requestHeaders;
 
@@ -95,6 +164,14 @@ async function requestHeaders(): Promise<Headers> {
   requestHeaders.set("x-sprachpilot-internal", secret);
   requestHeaders.set("x-sprachpilot-client-ip", clientIp);
   return requestHeaders;
+}
+
+function mapLinkError(error: unknown): AuthActionResult {
+  const mapped = mapAuthError(error);
+  if (mapped.ok || !(error instanceof ApiClientError)) return mapped;
+  const linkStatus = emailLinkStatusFromBody(error.body);
+  if (!linkStatus) return mapped;
+  return { ...mapped, code: "validation", linkStatus };
 }
 
 function mapAuthError(error: unknown): AuthActionResult {
