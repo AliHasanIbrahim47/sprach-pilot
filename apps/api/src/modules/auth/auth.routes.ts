@@ -1,7 +1,14 @@
-import { loginBodySchema, registerBodySchema } from "@sprachpilot/shared";
+import {
+  loginBodySchema,
+  passwordForgotBodySchema,
+  passwordResetBodySchema,
+  registerBodySchema,
+  resendVerificationBodySchema,
+  verifyEmailQuerySchema,
+} from "@sprachpilot/shared";
 import { type RequestHandler, Router } from "express";
 
-import { validateBody } from "../../middleware/validate.js";
+import { validateBody, validateQuery } from "../../middleware/validate.js";
 import type { AuthController } from "./auth.controller.js";
 
 export function createAuthRouter(controller: AuthController, requireAuth: RequestHandler): Router {
@@ -21,6 +28,26 @@ export function createAuthRouter(controller: AuthController, requireAuth: Reques
 
   router.post("/logout", (req, res, next) => {
     void controller.logout(req, res).catch(next);
+  });
+
+  router.get("/verify", validateQuery(verifyEmailQuerySchema), (req, res, next) => {
+    void controller.verifyEmail(req, res).catch(next);
+  });
+
+  router.post("/verify/resend", validateBody(resendVerificationBodySchema), (req, res, next) => {
+    void controller.resendVerification(req, res).catch(next);
+  });
+
+  router.post("/password/forgot", validateBody(passwordForgotBodySchema), (req, res, next) => {
+    void controller.forgotPassword(req, res).catch(next);
+  });
+
+  router.post("/password/reset", validateBody(passwordResetBodySchema), (req, res, next) => {
+    void controller.resetPassword(req, res).catch(next);
+  });
+
+  router.get("/me", requireAuth, (req, res, next) => {
+    void controller.me(req, res).catch(next);
   });
 
   router.get("/sessions", requireAuth, (req, res, next) => {

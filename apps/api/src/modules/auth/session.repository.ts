@@ -1,6 +1,6 @@
 import { prisma, type PrismaClient } from "@sprachpilot/db";
 
-export type RevokeReason = "logout" | "revoked" | "reuse";
+export type RevokeReason = "logout" | "revoked" | "reuse" | "password_reset";
 
 export interface SessionRecord {
   id: string;
@@ -53,6 +53,7 @@ export interface SessionRepository {
   rotate(input: RotateSessionInput): Promise<RotateResult>;
   familyBelongsToUser(familyId: string, userId: string): Promise<boolean>;
   revokeFamily(input: RevokeFamilyInput): Promise<void>;
+  revokeAllForUser(input: { userId: string; reason: RevokeReason; now: Date }): Promise<void>;
   listActive(userId: string, now: Date): Promise<SessionRecord[]>;
 }
 
@@ -72,7 +73,14 @@ interface SessionRow {
 }
 
 function readReason(value: string | null): RevokeReason | null {
-  if (value === "logout" || value === "revoked" || value === "reuse") return value;
+  if (
+    value === "logout" ||
+    value === "revoked" ||
+    value === "reuse" ||
+    value === "password_reset"
+  ) {
+    return value;
+  }
   return null;
 }
 
@@ -179,6 +187,13 @@ export function createSessionRepository(client: PrismaClient = prisma): SessionR
       });
     },
 
+    async revokeAllForUser(input) {
+      await client.session.updateMany({
+        where: { userId: input.userId, revokedAt: null },
+        data: { revokedAt: input.now, revokedReason: input.reason },
+      });
+    },
+
     async listActive(userId, now) {
       const rows = await client.session.findMany({
         where: {
@@ -281,6 +296,14 @@ export function createMemorySessionRepository(): MemorySessionRepository {
       for (const row of rows.values()) {
         if (row.familyId !== input.familyId || row.revokedAt !== null) continue;
         if (input.userId !== undefined && row.userId !== input.userId) continue;
+        row.revokedAt = input.now;
+        row.revokedReason = input.reason;
+      }
+    },
+
+    async revokeAllForUser(input) {
+      for (const row of rows.values()) {
+        if (row.userId !== input.userId || row.revokedAt !== null) continue;
         row.revokedAt = input.now;
         row.revokedReason = input.reason;
       }

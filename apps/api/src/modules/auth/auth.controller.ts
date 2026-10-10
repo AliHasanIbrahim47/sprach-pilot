@@ -1,9 +1,17 @@
-import type { LoginBody, RegisterBody } from "@sprachpilot/shared";
+import type {
+  LoginBody,
+  PasswordForgotBody,
+  PasswordResetBody,
+  RegisterBody,
+  ResendVerificationBody,
+  VerifyEmailQuery,
+} from "@sprachpilot/shared";
 import {
   ACCESS_TOKEN_COOKIE,
   NotFoundError,
   REFRESH_TOKEN_COOKIE,
   UnauthorizedError,
+  ValidationError,
 } from "@sprachpilot/shared";
 import type { Request, Response } from "express";
 
@@ -23,6 +31,11 @@ export interface AuthController {
   logout(req: Request, res: Response): Promise<void>;
   listSessions(req: Request, res: Response): Promise<void>;
   revokeSession(req: Request, res: Response): Promise<void>;
+  verifyEmail(req: Request, res: Response): Promise<void>;
+  resendVerification(req: Request, res: Response): Promise<void>;
+  forgotPassword(req: Request, res: Response): Promise<void>;
+  resetPassword(req: Request, res: Response): Promise<void>;
+  me(req: Request, res: Response): Promise<void>;
   jwks(req: Request, res: Response): void;
 }
 
@@ -31,6 +44,7 @@ export function createAuthController(
   resolveIp: (req: Request) => string,
   cookieOptions: AuthCookieOptions,
   jwksDocument: () => unknown,
+  readOptionalUserId: (req: Request) => Promise<string | undefined>,
 ): AuthController {
   return {
     async register(req, res) {
@@ -96,6 +110,59 @@ export function createAuthController(
       res.status(204).end();
     },
 
+    async verifyEmail(req, res) {
+      const query = req.query as VerifyEmailQuery;
+      const result = await service.verifyEmail(query.token);
+      noStore(res);
+      res.status(200).json(result);
+    },
+
+    async resendVerification(req, res) {
+      const body = req.body as ResendVerificationBody;
+      const userId = await readOptionalUserId(req);
+      if (!userId && !body.email) {
+        throw new ValidationError({
+          errors: [
+            {
+              field: "email",
+              code: "email_invalid",
+              message: "Enter a valid email address.",
+            },
+          ],
+        });
+      }
+      const result = await service.resendVerification(
+        {
+          ...(userId !== undefined ? { userId } : {}),
+          ...(body.email !== undefined ? { email: body.email } : {}),
+        },
+        requestContext(req, resolveIp),
+      );
+      noStore(res);
+      res.status(202).json(result);
+    },
+
+    async forgotPassword(req, res) {
+      const body = req.body as PasswordForgotBody;
+      const result = await service.forgotPassword(body, requestContext(req, resolveIp));
+      noStore(res);
+      res.status(202).json(result);
+    },
+
+    async resetPassword(req, res) {
+      const body = req.body as PasswordResetBody;
+      const result = await service.resetPassword(body);
+      noStore(res);
+      res.status(200).json(result);
+    },
+
+    async me(req, res) {
+      const auth = getRequestAuth(req);
+      const result = await service.getAccount(auth.sub);
+      noStore(res);
+      res.status(200).json(result);
+    },
+
     jwks(_req, res) {
       res.status(200).json(jwksDocument());
     },
@@ -107,9 +174,11 @@ function requestContext(
   resolveIp: (req: Request) => string,
 ): { ip: string; userAgent?: string } {
   const userAgent = req.get("user-agent");
+  const locale = req.get("x-ui-locale")?.trim();
   return {
     ip: resolveIp(req),
     ...(userAgent !== undefined ? { userAgent } : {}),
+    ...(locale !== undefined && locale.length > 0 ? { locale } : {}),
   };
 }
 
