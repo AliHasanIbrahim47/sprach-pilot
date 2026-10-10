@@ -116,8 +116,8 @@ export function RegisterForm(): React.JSX.Element {
       />
 
       <div className="flex flex-col gap-1.5">
-        <Label className="flex items-start gap-2 font-normal">
-          <input name="acceptedTerms" type="checkbox" className="mt-0.5 size-4" />
+        <Label className="flex items-center gap-2 font-normal leading-normal">
+          <input name="acceptedTerms" type="checkbox" className="size-4 shrink-0" />
           <span>{t("acceptedTerms")}</span>
         </Label>
         {consentError ? <p className="text-destructive text-xs">{consentError}</p> : null}
