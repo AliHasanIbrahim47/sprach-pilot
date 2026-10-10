@@ -46,7 +46,7 @@ export default async function LandingPage({
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_oklch(0.92_0.04_195)_0%,_transparent_55%),linear-gradient(180deg,_oklch(0.985_0.006_220)_0%,_oklch(0.96_0.02_210)_100%)] dark:bg-[radial-gradient(ellipse_at_top,_oklch(0.28_0.05_210)_0%,_transparent_55%),linear-gradient(180deg,_oklch(0.18_0.025_230)_0%,_oklch(0.16_0.03_220)_100%)]"
       />
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-20 sm:px-6 sm:py-28 lg:py-32">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-20 sm:px-6 sm:py-20">
         <p className="font-display text-primary text-4xl tracking-tight sm:text-5xl lg:text-6xl">
           {tCommon("appName")}
         </p>

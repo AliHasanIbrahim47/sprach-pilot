@@ -1,7 +1,8 @@
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { AnchorHTMLAttributes, ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import ar from "../messages/ar.json";
 import en from "../messages/en.json";
@@ -43,6 +44,10 @@ vi.mock("next-intl/navigation", () => ({
   }),
 }));
 
+vi.mock("@/components/auth/sign-out-form", () => ({
+  SignOutForm: () => <button type="submit">Sign out</button>,
+}));
+
 vi.mock("@/i18n/navigation", () => ({
   Link: ({
     children,
@@ -63,6 +68,10 @@ import { SkipToContent } from "@/components/layout/skip-to-content";
 import { getLocaleDirection } from "@/i18n/config";
 import { apiErrorTypeToMessageKey } from "@/lib/api-error-messages";
 
+afterEach(() => {
+  cleanup();
+});
+
 function renderWithIntl(ui: ReactNode, locale = "en", messages: typeof en = en) {
   return render(
     <NextIntlClientProvider locale={locale} messages={messages}>
@@ -80,13 +89,34 @@ describe("layout components", () => {
   });
 
   it("renders the site header with brand and primary navigation", () => {
-    renderWithIntl(<SiteHeader />);
+    renderWithIntl(<SiteHeader signedIn={false} />);
     expect(screen.getByRole("link", { name: /sprachpilot/i })).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: /primary/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Sign in" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
+  });
+
+  it("replaces sign in with sign out when a session cookie is present", () => {
+    renderWithIntl(<SiteHeader signedIn />);
+    expect(screen.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Sign in" })).not.toBeInTheDocument();
+  });
+
+  it("opens the navigation from the menu button", async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<SiteHeader signedIn={false} />);
+
+    await user.click(screen.getByRole("button", { name: "Open menu" }));
+
+    expect(screen.getByRole("button", { name: "Close menu" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    expect(screen.getAllByRole("link", { name: "Home" }).length).toBeGreaterThan(1);
   });
 
   it("renders Arabic navigation labels when locale is ar", () => {
-    renderWithIntl(<SiteHeader />, "ar", ar);
+    renderWithIntl(<SiteHeader signedIn={false} />, "ar", ar);
     expect(screen.getByRole("link", { name: "الرئيسية" })).toBeInTheDocument();
   });
 
