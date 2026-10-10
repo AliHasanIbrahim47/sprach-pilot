@@ -8,6 +8,7 @@ import { REQUEST_ID_HEADER } from "../src/middleware/request-id.js";
 import { createMemoryUserRepository } from "../src/modules/auth/auth.repository.js";
 import { createMemoryLoginThrottle } from "../src/modules/auth/login-throttle.js";
 import type { PasswordHasher } from "../src/modules/auth/password-hasher.js";
+import { createTestEmailPorts } from "./helpers/email.js";
 import { createValidApiEnv } from "./helpers/env.js";
 
 const fakeHasher: PasswordHasher = {
@@ -33,8 +34,8 @@ function createTestApp(env: NodeJS.ProcessEnv = {}) {
       users: createMemoryUserRepository(),
       throttle: createMemoryLoginThrottle(),
       hasher: fakeHasher,
-      mailer: { async send() {} },
       clock: () => new Date("2026-10-03T07:00:00.000Z"),
+      ...createTestEmailPorts(),
     },
   });
   return createApp(container);

@@ -7,13 +7,14 @@ import { createContainer } from "../src/container.js";
 import { REQUEST_ID_HEADER } from "../src/middleware/request-id.js";
 import { createMemoryLoginThrottle } from "../src/modules/auth/login-throttle.js";
 import type { DependencyHealthPort } from "../src/modules/health/health.schemas.js";
+import { createTestEmailPorts } from "./helpers/email.js";
 import { createValidApiEnv } from "./helpers/env.js";
 
 function createAppWithChecks(checks: DependencyHealthPort[]) {
   const config = loadConfig(createValidApiEnv());
   const container = createContainer(config, {
     dependencyChecks: checks,
-    auth: { throttle: createMemoryLoginThrottle() },
+    auth: { throttle: createMemoryLoginThrottle(), ...createTestEmailPorts() },
   });
   return createApp(container);
 }
