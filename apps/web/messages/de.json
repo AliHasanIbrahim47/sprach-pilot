@@ -83,11 +83,23 @@
     "linkMissing": "Öffne den Link aus deiner E-Mail oder fordere einen neuen an.",
     "resendVerification": "Neuen Link senden",
     "verificationSent": "Wenn ein Konto für diese E-Mail existiert, haben wir einen Bestätigungslink gesendet.",
-    "verifyToContinue": "Bestätige deine E-Mail, bevor du Dokumente hochlädst oder an Tandem und Café teilnimmst."
+    "verifyToContinue": "Bestätige deine E-Mail, bevor du Dokumente hochlädst oder an Tandem und Café teilnimmst.",
+    "orDivider": "oder",
+    "continueWithGoogle": "Mit Google fortfahren",
+    "oauthUnavailable": "Google-Anmeldung ist vorübergehend nicht verfügbar. Versuche es später erneut.",
+    "oauthFailed": "Google-Anmeldung fehlgeschlagen. Versuche es erneut oder nutze E-Mail und Passwort.",
+    "oauthDisabled": "Google-Anmeldung ist nicht aktiviert.",
+    "oauthStateInvalid": "Google-Anmeldung fehlgeschlagen. Starte erneut von der Anmeldeseite.",
+    "linkGoogleTitle": "Google verknüpfen",
+    "linkGoogleIntro": "Bestätige dein Passwort, um Google mit diesem Konto zu verknüpfen.",
+    "linkGoogleBody": "Bestätige das Passwort für {email}, um Google zu verknüpfen.",
+    "linkGoogleSubmit": "Google verknüpfen und anmelden"
   },
   "App": {
     "dashboardTitle": "Dashboard",
     "dashboardBody": "Platzhalter für die authentifizierte App. Feature-Seiten folgen in späteren Tickets.",
+    "onboardingTitle": "Willkommen",
+    "onboardingBody": "Onboarding und CEFR-Einstufung folgen in einem späteren Ticket. Du kannst die App vorerst über das Dashboard erkunden.",
     "decksTitle": "Karteikarten",
     "decksBody": "Deine Karteikarten erscheinen hier."
   },

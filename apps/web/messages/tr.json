@@ -83,11 +83,23 @@
     "linkMissing": "E-postandaki bağlantıyı aç veya yenisini iste.",
     "resendVerification": "Yeni bağlantı gönder",
     "verificationSent": "Bu e-posta için bir hesap varsa, bir doğrulama bağlantısı gönderdik.",
-    "verifyToContinue": "Belge yüklemeden veya tandem ve café’ye katılmadan önce e-postanı doğrula."
+    "verifyToContinue": "Belge yüklemeden veya tandem ve café’ye katılmadan önce e-postanı doğrula.",
+    "orDivider": "veya",
+    "continueWithGoogle": "Google ile devam et",
+    "oauthUnavailable": "Google ile giriş geçici olarak kullanılamıyor. Daha sonra tekrar dene.",
+    "oauthFailed": "Google ile giriş başarısız. Tekrar dene veya e-posta ve parola kullan.",
+    "oauthDisabled": "Google ile giriş etkin değil.",
+    "oauthStateInvalid": "Google ile giriş başarısız. Giriş sayfasından yeniden başla.",
+    "linkGoogleTitle": "Google’ı bağla",
+    "linkGoogleIntro": "Google’ı bu hesaba bağlamak için parolanı onayla.",
+    "linkGoogleBody": "Google bağlama işlemini bitirmek için {email} parolasını onayla.",
+    "linkGoogleSubmit": "Google’ı bağla ve oturum aç"
   },
   "App": {
     "dashboardTitle": "Kontrol paneli",
     "dashboardBody": "Kimliği doğrulanmış uygulama kabuğu yer tutucusu. Özellik sayfaları sonraki işlerde gelecek.",
+    "onboardingTitle": "Hoş geldin",
+    "onboardingBody": "Onboarding ve CEFR yerleştirmesi sonraki bir işte gelecek. Şimdilik kontrol panelinden uygulamayı keşfedebilirsin.",
     "decksTitle": "Kartlar",
     "decksBody": "Kartların burada görünecek."
   },
