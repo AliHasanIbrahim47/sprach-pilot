@@ -11,20 +11,25 @@ pnpm --filter @sprachpilot/api dev
 
 Default listen address: `http://localhost:3001`
 
-| Endpoint                       | Purpose                                                                                   |
-| ------------------------------ | ----------------------------------------------------------------------------------------- |
-| `GET /healthz`                 | Liveness — process is up                                                                  |
-| `GET /readyz`                  | Readiness — PostgreSQL and Redis reachable                                                |
-| `POST /v1/auth/register`       | Create an account (identical response if the email exists)                                |
-| `POST /v1/auth/login`          | Verify email and password                                                                 |
-| `POST /v1/auth/logout`         | Revoke the current session and clear auth cookies                                         |
-| `POST /v1/auth/refresh`        | Rotate the refresh token; reuse revokes the session family                                |
-| `GET /v1/auth/sessions`        | List the caller's active device sessions                                                  |
-| `DELETE /v1/auth/sessions/:id` | Revoke one device session                                                                 |
-| `GET /.well-known/jwks.json`   | Public Ed25519 keys for access-token verification                                         |
-| `GET /metrics`                 | Prometheus counters, including `auth_refresh_total` and `auth_token_reuse_detected_total` |
-| `GET /openapi.json`            | OpenAPI 3.1 document (non-production, or `ENABLE_API_DOCS`)                               |
-| `GET /docs`                    | Scalar API reference UI                                                                   |
+| Endpoint                        | Purpose                                                                                   |
+| ------------------------------- | ----------------------------------------------------------------------------------------- |
+| `GET /healthz`                  | Liveness — process is up                                                                  |
+| `GET /readyz`                   | Readiness — PostgreSQL and Redis reachable                                                |
+| `POST /v1/auth/register`        | Create an account (identical response if the email exists)                                |
+| `POST /v1/auth/login`           | Verify email and password                                                                 |
+| `POST /v1/auth/logout`          | Revoke the current session and clear auth cookies                                         |
+| `POST /v1/auth/refresh`         | Rotate the refresh token; reuse revokes the session family                                |
+| `GET /v1/auth/verify`           | Consume a single-use email verification token                                             |
+| `POST /v1/auth/verify/resend`   | Queue another verification email (same response if the address is unknown)                |
+| `POST /v1/auth/password/forgot` | Queue a password-reset email (same response if the address is unknown)                    |
+| `POST /v1/auth/password/reset`  | Set a new password and revoke every session                                               |
+| `GET /v1/auth/me`               | Current account, including whether the email is verified                                  |
+| `GET /v1/auth/sessions`         | List the caller's active device sessions                                                  |
+| `DELETE /v1/auth/sessions/:id`  | Revoke one device session                                                                 |
+| `GET /.well-known/jwks.json`    | Public Ed25519 keys for access-token verification                                         |
+| `GET /metrics`                  | Prometheus counters, including `auth_refresh_total` and `auth_token_reuse_detected_total` |
+| `GET /openapi.json`             | OpenAPI 3.1 document (non-production, or `ENABLE_API_DOCS`)                               |
+| `GET /docs`                     | Scalar API reference UI                                                                   |
 
 Config is validated with Zod at startup (see [`.env.example`](./.env.example)). `DATABASE_URL`, `REDIS_URL`, S3, SMTP, and `IP_HASH_SECRET` are required. Local `apps/api/.env` is loaded automatically; process env still wins.
 
