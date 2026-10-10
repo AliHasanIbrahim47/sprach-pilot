@@ -184,9 +184,12 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 100
+          },
+          "emailVerified": {
+            "type": "boolean"
           }
         },
-        "required": ["id", "displayName"]
+        "required": ["id", "displayName", "emailVerified"]
       },
       "LoginBody": {
         "type": "object",
@@ -265,6 +268,105 @@
           }
         },
         "required": ["id", "current", "userAgent", "createdAt", "lastUsedAt", "expiresAt"]
+      },
+      "VerifyEmailResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["verified"]
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": ["status", "message"]
+      },
+      "ResendVerificationBody": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 320,
+            "format": "email",
+            "description": "Account email. Ignored when a session cookie is present.",
+            "example": "learner@example.com"
+          }
+        }
+      },
+      "PasswordForgotBody": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 320,
+            "format": "email",
+            "description": "Normalized email address",
+            "example": "learner@example.com"
+          }
+        },
+        "required": ["email"]
+      },
+      "PasswordResetResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["reset"]
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": ["status", "message"]
+      },
+      "PasswordResetBody": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 256,
+            "description": "Single-use reset token"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 128,
+            "description": "New password (min 10 characters)"
+          }
+        },
+        "required": ["token", "password"]
+      },
+      "AccountResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 320,
+            "format": "email"
+          },
+          "emailVerified": {
+            "type": "boolean"
+          },
+          "locale": {
+            "type": "string",
+            "enum": ["en", "de", "ar", "uk", "tr"]
+          }
+        },
+        "required": ["id", "displayName", "email", "emailVerified", "locale"]
       }
     },
     "parameters": {}
@@ -570,6 +672,231 @@
           },
           "404": {
             "description": "No session with that id belongs to the caller",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/verify": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Verify an email address",
+        "description": "Consumes a single-use verification token. A token that was already used returns 409. Expired and unknown tokens return 400. The raw token is not stored.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 32,
+              "maxLength": 256,
+              "description": "Single-use verification token"
+            },
+            "required": true,
+            "description": "Single-use verification token",
+            "name": "token",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Email verified",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyEmailResponse"
+                },
+                "example": {
+                  "status": "verified",
+                  "message": "Your email is verified."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Token is missing, expired, or invalid",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Link already used",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/verify/resend": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Resend a verification email",
+        "description": "Queues another verification email when the account exists and is unverified, up to 3 per address per hour. The response does not reveal whether the email exists, is already verified, or was rate limited. A session cookie selects the signed-in account.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResendVerificationBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Request accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterAcceptedResponse"
+                },
+                "example": {
+                  "status": "accepted",
+                  "message": "If an account exists for that email, we sent a verification link."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/password/forgot": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Request a password reset",
+        "description": "Always returns the same confirmation. A reset email is queued only when the account exists and the address is under the hourly limit of 3.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordForgotBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Request accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterAcceptedResponse"
+                },
+                "example": {
+                  "status": "accepted",
+                  "message": "If an account exists for that email, we sent password reset instructions."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/password/reset": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Choose a new password",
+        "description": "Consumes a single-use reset token, stores a new password hash, and revokes every existing session for that user.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password updated and sessions revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordResetResponse"
+                },
+                "example": {
+                  "status": "reset",
+                  "message": "Your password has been reset. Sign in with the new password."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Token is invalid or expired, or the password is too common",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Link already used",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/me": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Current account",
+        "description": "Returns the signed-in account, including whether the email is verified.",
+        "responses": {
+          "200": {
+            "description": "Current account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or expired access token",
             "content": {
               "application/problem+json": {
                 "schema": {

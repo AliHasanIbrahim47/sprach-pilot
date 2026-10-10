@@ -1,6 +1,15 @@
 import { OpenApiGeneratorV31, OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
 
+import {
+  accountResponseSchema,
+  passwordForgotBodySchema,
+  passwordResetBodySchema,
+  passwordResetResponseSchema,
+  resendVerificationBodySchema,
+  verifyEmailQuerySchema,
+  verifyEmailResponseSchema,
+} from "../auth/email-flows.js";
 import { loginBodySchema, loginSuccessResponseSchema } from "../auth/login.js";
 import { AUTH_COPY } from "../auth/messages.js";
 import { registerAcceptedResponseSchema, registerBodySchema } from "../auth/register.js";
@@ -240,6 +249,147 @@ openApiRegistry.registerPath({
     },
     404: {
       description: "No session with that id belongs to the caller",
+      content: problemResponse.content,
+    },
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "get",
+  path: "/v1/auth/verify",
+  tags: ["Auth"],
+  summary: "Verify an email address",
+  description:
+    "Consumes a single-use verification token. A token that was already used returns 409. Expired and unknown tokens return 400. The raw token is not stored.",
+  request: {
+    query: verifyEmailQuerySchema,
+  },
+  responses: {
+    200: {
+      description: "Email verified",
+      content: {
+        "application/json": {
+          schema: verifyEmailResponseSchema,
+          example: { status: "verified", message: AUTH_COPY.emailVerified },
+        },
+      },
+    },
+    400: {
+      description: "Token is missing, expired, or invalid",
+      content: problemResponse.content,
+    },
+    409: {
+      description: AUTH_COPY.linkAlreadyUsed,
+      content: problemResponse.content,
+    },
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "post",
+  path: "/v1/auth/verify/resend",
+  tags: ["Auth"],
+  summary: "Resend a verification email",
+  description:
+    "Queues another verification email when the account exists and is unverified, up to 3 per address per hour. The response does not reveal whether the email exists, is already verified, or was rate limited. A session cookie selects the signed-in account.",
+  request: {
+    body: {
+      content: { "application/json": { schema: resendVerificationBodySchema } },
+      required: true,
+    },
+  },
+  responses: {
+    202: {
+      description: "Request accepted",
+      content: {
+        "application/json": {
+          schema: registerAcceptedResponseSchema,
+          example: { status: "accepted", message: AUTH_COPY.verificationResent },
+        },
+      },
+    },
+    400: problemResponse,
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "post",
+  path: "/v1/auth/password/forgot",
+  tags: ["Auth"],
+  summary: "Request a password reset",
+  description:
+    "Always returns the same confirmation. A reset email is queued only when the account exists and the address is under the hourly limit of 3.",
+  request: {
+    body: {
+      content: { "application/json": { schema: passwordForgotBodySchema } },
+      required: true,
+    },
+  },
+  responses: {
+    202: {
+      description: "Request accepted",
+      content: {
+        "application/json": {
+          schema: registerAcceptedResponseSchema,
+          example: { status: "accepted", message: AUTH_COPY.passwordResetAccepted },
+        },
+      },
+    },
+    400: problemResponse,
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "post",
+  path: "/v1/auth/password/reset",
+  tags: ["Auth"],
+  summary: "Choose a new password",
+  description:
+    "Consumes a single-use reset token, stores a new password hash, and revokes every existing session for that user.",
+  request: {
+    body: {
+      content: { "application/json": { schema: passwordResetBodySchema } },
+      required: true,
+    },
+  },
+  responses: {
+    200: {
+      description: "Password updated and sessions revoked",
+      content: {
+        "application/json": {
+          schema: passwordResetResponseSchema,
+          example: { status: "reset", message: AUTH_COPY.passwordResetComplete },
+        },
+      },
+    },
+    400: {
+      description: "Token is invalid or expired, or the password is too common",
+      content: problemResponse.content,
+    },
+    409: {
+      description: AUTH_COPY.linkAlreadyUsed,
+      content: problemResponse.content,
+    },
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "get",
+  path: "/v1/auth/me",
+  tags: ["Auth"],
+  summary: "Current account",
+  description: "Returns the signed-in account, including whether the email is verified.",
+  responses: {
+    200: {
+      description: "Current account",
+      content: {
+        "application/json": {
+          schema: accountResponseSchema,
+        },
+      },
+    },
+    401: {
+      description: "Missing or expired access token",
       content: problemResponse.content,
     },
   },
