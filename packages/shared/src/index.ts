@@ -55,6 +55,24 @@ export {
   oauthGoogleLinkBodySchema,
   oauthLinkRequiredResponseSchema,
 } from "./auth/oauth.js";
+export type {
+  AssignRoleBody,
+  AssignRoleResponse,
+  Permission,
+  SessionUser,
+  UserRole,
+} from "./auth/permissions.js";
+export {
+  assignRoleBodySchema,
+  assignRoleResponseSchema,
+  can,
+  isUserRole,
+  PERMISSIONS,
+  permissionSchema,
+  sessionUserSchema,
+  USER_ROLES,
+  userRoleSchema,
+} from "./auth/permissions.js";
 export type { RegisterAcceptedResponse, RegisterBody } from "./auth/register.js";
 export { registerAcceptedResponseSchema, registerBodySchema } from "./auth/register.js";
 export type { AuthSession, RefreshSuccessResponse, SessionListResponse } from "./auth/sessions.js";

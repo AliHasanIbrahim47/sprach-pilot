@@ -23,7 +23,8 @@ Default listen address: `http://localhost:3001`
 | `POST /v1/auth/verify/resend`         | Queue another verification email (same response if the address is unknown)                |
 | `POST /v1/auth/password/forgot`       | Queue a password-reset email (same response if the address is unknown)                    |
 | `POST /v1/auth/password/reset`        | Set a new password and revoke every session                                               |
-| `GET /v1/auth/me`                     | Current account (verification, password presence, Google link)                            |
+| `GET /v1/auth/me`                     | Current account; `role` is the access-token role                                          |
+| `PATCH /v1/admin/users/:userId`       | Assign one role (`roles.assign`); keeps at least one admin                                |
 | `GET /v1/auth/oauth/google`           | Start Google OAuth (PKCE); behind `FEATURE_GOOGLE_OAUTH`                                  |
 | `POST /v1/auth/oauth/google/callback` | Exchange code; create/login or return `link_required`                                     |
 | `POST /v1/auth/oauth/google/link`     | Confirm password and link Google to an existing account                                   |

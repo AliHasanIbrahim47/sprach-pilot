@@ -23,6 +23,7 @@ When a decision changes: write a new ADR, set the old one's status to **Supersed
 | [0005](./0005-ai-provider-abstraction.md) | AI provider abstraction (OCR, TTS, STT, LLM) | Accepted |
 | [0006](./0006-kubernetes-helm-observability.md) | Kubernetes + Helm, Prometheus + Grafana | Accepted |
 | [0007](./0007-openapi-from-zod.md) | OpenAPI generated from shared Zod contracts | Accepted |
+| [0008](./0008-one-role-per-user.md) | One role per user | Accepted |
 
 ## Adding an ADR
 

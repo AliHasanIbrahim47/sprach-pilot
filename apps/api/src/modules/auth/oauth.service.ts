@@ -30,6 +30,7 @@ import type { AuthMetrics } from "./metrics.js";
 import type { OAuthStateStore } from "./oauth-state.store.js";
 import type { PasswordHasher } from "./password-hasher.js";
 import type { SessionRepository } from "./session.repository.js";
+import { sessionRole } from "./session-role.js";
 import type { TokenService } from "./token.service.js";
 
 const AUTHORIZE_TTL_SECONDS = 10 * 60;
@@ -153,6 +154,7 @@ export function createOAuthService(dependencies: OAuthServiceDependencies): OAut
         id: user.id,
         displayName: user.displayName,
         emailVerified: user.emailVerifiedAt !== null,
+        role: sessionRole(user.role),
       },
       credentials,
       returnTo: meta.returnTo,

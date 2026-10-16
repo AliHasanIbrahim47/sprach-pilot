@@ -167,12 +167,12 @@
             "enum": ["authenticated"]
           },
           "user": {
-            "$ref": "#/components/schemas/LoginUser"
+            "$ref": "#/components/schemas/SessionUser"
           }
         },
         "required": ["status", "user"]
       },
-      "LoginUser": {
+      "SessionUser": {
         "type": "object",
         "properties": {
           "id": {
@@ -187,9 +187,17 @@
           },
           "emailVerified": {
             "type": "boolean"
+          },
+          "role": {
+            "$ref": "#/components/schemas/UserRole"
           }
         },
-        "required": ["id", "displayName", "emailVerified"]
+        "required": ["id", "displayName", "emailVerified", "role"]
+      },
+      "UserRole": {
+        "type": "string",
+        "enum": ["learner", "volunteer", "organizer", "content_editor", "moderator", "admin"],
+        "description": "The single role stored for a user and copied into the access token."
       },
       "LoginBody": {
         "type": "object",
@@ -370,6 +378,9 @@
           },
           "googleLinked": {
             "type": "boolean"
+          },
+          "role": {
+            "$ref": "#/components/schemas/UserRole"
           }
         },
         "required": [
@@ -379,8 +390,32 @@
           "emailVerified",
           "locale",
           "hasPassword",
-          "googleLinked"
+          "googleLinked",
+          "role"
         ]
+      },
+      "AssignRoleResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "role": {
+            "$ref": "#/components/schemas/UserRole"
+          }
+        },
+        "required": ["id", "role"]
+      },
+      "AssignRoleBody": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/UserRole"
+          }
+        },
+        "required": ["role"]
       },
       "OAuthCallbackResponse": {
         "oneOf": [
@@ -415,23 +450,7 @@
             "maxLength": 8
           },
           "user": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 64
-              },
-              "displayName": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 100
-              },
-              "emailVerified": {
-                "type": "boolean"
-              }
-            },
-            "required": ["id", "displayName", "emailVerified"]
+            "$ref": "#/components/schemas/SessionUser"
           }
         },
         "required": ["status", "needsOnboarding", "locale", "user"]
@@ -1008,7 +1027,7 @@
       "get": {
         "tags": ["Auth"],
         "summary": "Current account",
-        "description": "Returns the signed-in account, including email verification, password presence, and Google link status.",
+        "description": "Returns the signed-in account. `role` is the role in the current access token, which can lag the database until refresh.",
         "responses": {
           "200": {
             "description": "Current account",
@@ -1022,6 +1041,85 @@
           },
           "401": {
             "description": "Missing or expired access token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/users/{userId}": {
+      "patch": {
+        "tags": ["Admin"],
+        "summary": "Assign a role",
+        "description": "Replaces the user's role. Requires the roles.assign permission and a stored admin role. Refuses to remove the last admin.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "userId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignRoleBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The role now stored for the user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssignRoleResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or expired access token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller cannot assign roles",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The change would leave the platform with no admin",
             "content": {
               "application/problem+json": {
                 "schema": {

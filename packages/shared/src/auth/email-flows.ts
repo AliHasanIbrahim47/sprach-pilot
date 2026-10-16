@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { UI_LOCALES } from "../locale.js";
+import { userRoleSchema } from "./permissions.js";
 
 const emailSchema = z
   .string()
@@ -72,6 +73,7 @@ export const accountResponseSchema = z
     locale: z.enum(UI_LOCALES),
     hasPassword: z.boolean(),
     googleLinked: z.boolean(),
+    role: userRoleSchema,
   })
   .meta({ id: "AccountResponse" });
 

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { sessionUserSchema } from "./permissions.js";
+
 /** Login body. Length policy is enforced at registration, not here, so a wrong short password still gets the generic error. */
 export const loginBodySchema = z
   .object({
@@ -23,13 +25,7 @@ export type LoginBody = z.infer<typeof loginBodySchema>;
 export const loginSuccessResponseSchema = z
   .object({
     status: z.literal("authenticated"),
-    user: z
-      .object({
-        id: z.string().min(1).max(64),
-        displayName: z.string().min(1).max(100),
-        emailVerified: z.boolean(),
-      })
-      .meta({ id: "LoginUser" }),
+    user: sessionUserSchema,
   })
   .meta({ id: "LoginSuccessResponse" });
 

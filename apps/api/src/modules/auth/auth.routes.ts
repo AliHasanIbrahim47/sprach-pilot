@@ -11,82 +11,152 @@ import {
 import { type RequestHandler, Router } from "express";
 
 import { validateBody, validateQuery } from "../../middleware/validate.js";
+import { bindRoute, tagRouter } from "../access/route-access.js";
 import type { AuthController } from "./auth.controller.js";
 
+const learn = { kind: "permission", permission: "learn" } as const;
+const isPublic = { kind: "public" } as const;
+
 export function createAuthRouter(controller: AuthController, requireAuth: RequestHandler): Router {
-  const router = Router();
+  const router = tagRouter(Router(), "/v1/auth");
 
-  router.post("/register", validateBody(registerBodySchema), (req, res, next) => {
-    void controller.register(req, res).catch(next);
-  });
+  bindRoute(router, "post", "/register", isPublic, [
+    validateBody(registerBodySchema),
+    (req, res, next) => {
+      void controller.register(req, res).catch(next);
+    },
+  ]);
 
-  router.post("/login", validateBody(loginBodySchema), (req, res, next) => {
-    void controller.login(req, res).catch(next);
-  });
+  bindRoute(router, "post", "/login", isPublic, [
+    validateBody(loginBodySchema),
+    (req, res, next) => {
+      void controller.login(req, res).catch(next);
+    },
+  ]);
 
-  router.post("/refresh", (req, res, next) => {
-    void controller.refresh(req, res).catch(next);
-  });
+  bindRoute(router, "post", "/refresh", isPublic, [
+    (req, res, next) => {
+      void controller.refresh(req, res).catch(next);
+    },
+  ]);
 
-  router.post("/logout", (req, res, next) => {
-    void controller.logout(req, res).catch(next);
-  });
+  bindRoute(router, "post", "/logout", isPublic, [
+    (req, res, next) => {
+      void controller.logout(req, res).catch(next);
+    },
+  ]);
 
-  router.get("/verify", validateQuery(verifyEmailQuerySchema), (req, res, next) => {
-    void controller.verifyEmail(req, res).catch(next);
-  });
+  bindRoute(router, "get", "/verify", isPublic, [
+    validateQuery(verifyEmailQuerySchema),
+    (req, res, next) => {
+      void controller.verifyEmail(req, res).catch(next);
+    },
+  ]);
 
-  router.post("/verify/resend", validateBody(resendVerificationBodySchema), (req, res, next) => {
-    void controller.resendVerification(req, res).catch(next);
-  });
+  bindRoute(router, "post", "/verify/resend", isPublic, [
+    validateBody(resendVerificationBodySchema),
+    (req, res, next) => {
+      void controller.resendVerification(req, res).catch(next);
+    },
+  ]);
 
-  router.post("/password/forgot", validateBody(passwordForgotBodySchema), (req, res, next) => {
-    void controller.forgotPassword(req, res).catch(next);
-  });
+  bindRoute(router, "post", "/password/forgot", isPublic, [
+    validateBody(passwordForgotBodySchema),
+    (req, res, next) => {
+      void controller.forgotPassword(req, res).catch(next);
+    },
+  ]);
 
-  router.post("/password/reset", validateBody(passwordResetBodySchema), (req, res, next) => {
-    void controller.resetPassword(req, res).catch(next);
-  });
+  bindRoute(router, "post", "/password/reset", isPublic, [
+    validateBody(passwordResetBodySchema),
+    (req, res, next) => {
+      void controller.resetPassword(req, res).catch(next);
+    },
+  ]);
 
-  router.get("/oauth/google", (req, res, next) => {
-    void controller.oauthGoogleStart(req, res).catch(next);
-  });
+  bindRoute(router, "get", "/oauth/google", isPublic, [
+    (req, res, next) => {
+      void controller.oauthGoogleStart(req, res).catch(next);
+    },
+  ]);
 
-  router.post(
-    "/oauth/google/callback",
+  bindRoute(router, "post", "/oauth/google/callback", isPublic, [
     validateBody(oauthGoogleCallbackBodySchema),
     (req, res, next) => {
       void controller.oauthGoogleCallback(req, res).catch(next);
     },
+  ]);
+
+  bindRoute(router, "post", "/oauth/google/link", isPublic, [
+    validateBody(oauthGoogleLinkBodySchema),
+    (req, res, next) => {
+      void controller.oauthGoogleLink(req, res).catch(next);
+    },
+  ]);
+
+  bindRoute(
+    router,
+    "delete",
+    "/oauth/google",
+    learn,
+    [
+      (req, res, next) => {
+        void controller.oauthGoogleUnlink(req, res).catch(next);
+      },
+    ],
+    requireAuth,
   );
 
-  router.post("/oauth/google/link", validateBody(oauthGoogleLinkBodySchema), (req, res, next) => {
-    void controller.oauthGoogleLink(req, res).catch(next);
-  });
+  bindRoute(
+    router,
+    "get",
+    "/me",
+    learn,
+    [
+      (req, res, next) => {
+        void controller.me(req, res).catch(next);
+      },
+    ],
+    requireAuth,
+  );
 
-  router.delete("/oauth/google", requireAuth, (req, res, next) => {
-    void controller.oauthGoogleUnlink(req, res).catch(next);
-  });
+  bindRoute(
+    router,
+    "get",
+    "/sessions",
+    learn,
+    [
+      (req, res, next) => {
+        void controller.listSessions(req, res).catch(next);
+      },
+    ],
+    requireAuth,
+  );
 
-  router.get("/me", requireAuth, (req, res, next) => {
-    void controller.me(req, res).catch(next);
-  });
-
-  router.get("/sessions", requireAuth, (req, res, next) => {
-    void controller.listSessions(req, res).catch(next);
-  });
-
-  router.delete("/sessions/:id", requireAuth, (req, res, next) => {
-    void controller.revokeSession(req, res).catch(next);
-  });
+  bindRoute(
+    router,
+    "delete",
+    "/sessions/:id",
+    learn,
+    [
+      (req, res, next) => {
+        void controller.revokeSession(req, res).catch(next);
+      },
+    ],
+    requireAuth,
+  );
 
   return router;
 }
 
 export function createJwksRouter(controller: AuthController): Router {
-  const router = Router();
-  router.get("/.well-known/jwks.json", (req, res) => {
-    controller.jwks(req, res);
-  });
+  const router = tagRouter(Router(), "");
+
+  bindRoute(router, "get", "/.well-known/jwks.json", isPublic, [
+    (req, res) => {
+      controller.jwks(req, res);
+    },
+  ]);
+
   return router;
 }

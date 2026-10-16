@@ -6,6 +6,7 @@ import { createConsoleLogger } from "./infrastructure/logger.js";
 import { createErrorHandler } from "./middleware/error-handler.js";
 import { notFoundHandler } from "./middleware/not-found.js";
 import { requestIdMiddleware } from "./middleware/request-id.js";
+import { tagRouter } from "./modules/access/route-access.js";
 
 export type CreateAppOptions = {
   /** Extra routers mounted under `/v1` (used by contract tests). */
@@ -23,12 +24,13 @@ export function createApp(container: AppContainer, options: CreateAppOptions = {
   app.use(container.healthRouter);
   app.use(container.jwksRouter);
 
-  const v1 = Router();
+  const v1 = tagRouter(Router(), "/v1");
   v1.use((_req, res, next) => {
     res.setHeader("API-Version", "1");
     next();
   });
   v1.use("/auth", container.authRouter);
+  v1.use(container.adminRouter);
   options.registerV1?.(v1);
   app.use("/v1", v1);
   app.use(container.metricsRouter);

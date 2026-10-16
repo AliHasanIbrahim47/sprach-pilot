@@ -33,7 +33,7 @@ Inside the package the same scripts exist without the root proxy (`pnpm --filter
 | `admin@sprachpilot.local`   | `ChangeMe!Admin1`   | `admin`   |
 | `learner@sprachpilot.local` | `ChangeMe!Learner1` | `learner` |
 
-Passwords are hashed with argon2id (`memoryCost` 19456 KiB, `timeCost` 2, `parallelism` 1) via `src/password.ts`. Re-running seed updates those rows; it never creates duplicates.
+Passwords are hashed with argon2id (`memoryCost` 19456 KiB, `timeCost` 2, `parallelism` 1) via `src/password.ts`. Re-running seed updates the display name and password on those rows and never creates duplicates. An existing user's role is left as stored; the role is written only when the row is created.
 
 `consent_records` stores Terms and Privacy acceptance (policy, version, timestamp, IP hash) captured at registration.
 

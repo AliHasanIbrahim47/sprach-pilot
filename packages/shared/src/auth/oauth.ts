@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { sessionUserSchema } from "./permissions.js";
+
 export const GOOGLE_OAUTH_PROVIDER = "google" as const;
 
 export const oauthGoogleCallbackBodySchema = z
@@ -25,11 +27,7 @@ export const oauthAuthenticatedResponseSchema = z
     status: z.literal("authenticated"),
     needsOnboarding: z.boolean(),
     locale: z.string().min(2).max(8),
-    user: z.object({
-      id: z.string().min(1).max(64),
-      displayName: z.string().min(1).max(100),
-      emailVerified: z.boolean(),
-    }),
+    user: sessionUserSchema,
   })
   .meta({ id: "OAuthAuthenticatedResponse" });
 

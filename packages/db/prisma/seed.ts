@@ -63,7 +63,6 @@ async function upsertSeedUser(seed: (typeof SEED_USERS)[number]): Promise<string
     },
     update: {
       displayName: seed.displayName,
-      role: seed.role,
       passwordHash,
       emailVerifiedAt: new Date(),
       deletedAt: null,

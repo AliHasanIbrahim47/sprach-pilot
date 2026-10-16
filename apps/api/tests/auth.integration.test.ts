@@ -219,7 +219,7 @@ describe("session cookies", () => {
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
       status: "authenticated",
-      user: { id: expect.any(String), displayName: "Ada", emailVerified: false },
+      user: { id: expect.any(String), displayName: "Ada", emailVerified: false, role: "learner" },
     });
     expect(response.body.accessToken).toBeUndefined();
     expect(response.body.refreshToken).toBeUndefined();
