@@ -17,6 +17,9 @@ interface LoginFormProps {
   nextPath?: string | null;
 }
 
+/**
+ * Signs in and opens onboarding when the account has not finished or skipped it.
+ */
 export function LoginForm({ nextPath = null }: LoginFormProps): React.JSX.Element {
   const t = useTranslations("Auth");
   const router = useRouter();
@@ -24,6 +27,9 @@ export function LoginForm({ nextPath = null }: LoginFormProps): React.JSX.Elemen
   const [summary, setSummary] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  /**
+   * Validates the form, then routes to onboarding or the page the learner asked for.
+   */
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setSummary("");

@@ -13,6 +13,9 @@ interface CityPickerProps {
   onSelect: (city: CitySuggestion) => void;
 }
 
+/**
+ * Searches cities as the learner types and keeps only the latest response.
+ */
 export function CityPicker({ selectedId, onSearch, onSelect }: CityPickerProps): React.JSX.Element {
   const t = useTranslations("Onboarding");
   const [query, setQuery] = useState("");
@@ -21,6 +24,9 @@ export function CityPicker({ selectedId, onSearch, onSelect }: CityPickerProps):
   const [hasError, setHasError] = useState(false);
   const requestId = useRef(0);
 
+  /**
+   * Queries once the text is long enough, and ignores a response from an older keystroke.
+   */
   async function handleChange(value: string): Promise<void> {
     const id = requestId.current + 1;
     requestId.current = id;

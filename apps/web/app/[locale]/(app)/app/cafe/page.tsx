@@ -9,6 +9,9 @@ interface CafePageProps {
   params: Promise<{ locale: string }>;
 }
 
+/**
+ * Shows the café and asks for a city when onboarding did not store one. An open wizard redirects there first.
+ */
 export default async function CafePage({ params }: CafePageProps): Promise<React.JSX.Element> {
   const { locale } = await params;
   setRequestLocale(locale);

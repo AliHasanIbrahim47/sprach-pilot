@@ -262,6 +262,9 @@ export function toCityPoint(city: GermanCity): CityPoint {
   };
 }
 
+/**
+ * Matches a city name or postal-code prefix and returns at most eight centroids.
+ */
 export function searchCities(
   query: string,
   cities: readonly GermanCity[] = GERMAN_CITIES,

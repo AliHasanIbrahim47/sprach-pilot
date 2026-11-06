@@ -40,6 +40,9 @@ export function createOnboardingService(
   const { profiles, metrics, clock } = dependencies;
   const recordedSteps = new Set<string>();
 
+  /**
+   * Counts a step the first time this process sees it for the user.
+   */
   function recordOnce(userId: string, step: OnboardingStep | "skipped"): void {
     const key = `${userId}:${step}`;
     if (recordedSteps.has(key)) return;
@@ -52,6 +55,9 @@ export function createOnboardingService(
       return toResponse(await profiles.get(userId));
     },
 
+    /**
+     * Applies one wizard step and moves the resume pointer forward while onboarding is still open.
+     */
     async save(userId, body) {
       const profile = await profiles.get(userId);
       const pending = isPending(profile);
@@ -72,6 +78,9 @@ export function createOnboardingService(
       return scorePlacement(body);
     },
 
+    /**
+     * Finishes onboarding once languages, a level, and a goal are stored, then returns recommendations.
+     */
     async complete(userId) {
       const profile = await profiles.get(userId);
       const missing = missingRequirements(profile);
@@ -90,6 +99,9 @@ export function createOnboardingService(
       return toResponse(profile);
     },
 
+    /**
+     * Closes the wizard without requiring the remaining answers.
+     */
     async skip(userId) {
       const profile = await profiles.get(userId);
       if (isPending(profile)) {
@@ -106,6 +118,9 @@ export function createOnboardingService(
   };
 }
 
+/**
+ * Writes one step. Skipping the quiz keeps the current level, and skipping the city clears it.
+ */
 function applyStep(profile: OnboardingProfile, body: OnboardingStepBody): void {
   switch (body.step) {
     case "languages":
@@ -156,6 +171,9 @@ function applyStep(profile: OnboardingProfile, body: OnboardingStepBody): void {
   }
 }
 
+/**
+ * Grades the ten answers and suggests the highest band the learner passed.
+ */
 function scorePlacement(body: QuizSubmission): QuizResult {
   const choices = new Map<string, string>();
   for (const answer of body.answers) {
@@ -168,7 +186,13 @@ function scorePlacement(body: QuizSubmission): QuizResult {
     choices.set(answer.itemId, answer.choiceId);
   }
 
-  const graded = QUIZ_ITEMS.map((item) => {
+  /**
+   * Grades one catalog item. An unknown question or choice is rejected.
+   */
+  function gradeAnswer(item: (typeof QUIZ_ITEMS)[number]): {
+    level: (typeof item)["level"];
+    correct: boolean;
+  } {
     const choiceId = choices.get(item.id);
     if (!choiceId || !item.choices.some((choice) => choice.id === choiceId)) {
       throw new ValidationError({
@@ -177,7 +201,9 @@ function scorePlacement(body: QuizSubmission): QuizResult {
       });
     }
     return { level: item.level, correct: choiceId === item.correctChoiceId };
-  });
+  }
+
+  const graded = QUIZ_ITEMS.map(gradeAnswer);
 
   return {
     suggestedLevel: suggestCefrLevel(graded),
@@ -186,6 +212,9 @@ function scorePlacement(body: QuizSubmission): QuizResult {
   };
 }
 
+/**
+ * Moves the resume pointer to the step after the one just saved, and never backward.
+ */
 function advance(current: OnboardingStep, saved: OnboardingStep): OnboardingStep {
   const currentIndex = ONBOARDING_STEPS.indexOf(current);
   const savedIndex = ONBOARDING_STEPS.indexOf(saved);
@@ -193,6 +222,9 @@ function advance(current: OnboardingStep, saved: OnboardingStep): OnboardingStep
   return ONBOARDING_STEPS[Math.max(currentIndex, nextIndex)] ?? current;
 }
 
+/**
+ * Lists the answers that must be stored before onboarding can finish.
+ */
 function missingRequirements(profile: OnboardingProfile): string[] {
   const missing: string[] = [];
   if (profile.nativeLanguages.length === 0) missing.push("nativeLanguages");
@@ -201,6 +233,9 @@ function missingRequirements(profile: OnboardingProfile): string[] {
   return missing;
 }
 
+/**
+ * Shapes the profile for the client. Recommendations appear only after completion, and only with a level.
+ */
 function toResponse(profile: OnboardingProfile): OnboardingResponse {
   const status = profile.completedAt ? "completed" : profile.skippedAt ? "skipped" : "pending";
   return {

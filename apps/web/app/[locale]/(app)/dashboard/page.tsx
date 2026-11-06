@@ -8,6 +8,9 @@ interface DashboardPageProps {
   params: Promise<{ locale: string }>;
 }
 
+/**
+ * Opens the wizard until it is finished or skipped, then shows recommendations only after completion.
+ */
 export default async function DashboardPage({
   params,
 }: DashboardPageProps): Promise<React.JSX.Element> {

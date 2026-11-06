@@ -59,21 +59,30 @@ export const SCENARIOS: readonly Scenario[] = [
   },
 ];
 
+/** Returns three scenarios, preferring the learner's goals and level. */
 export function recommendScenarios(
   input: { level: PlacementLevel; goals: readonly LearningGoal[] },
   catalog: readonly Scenario[] = SCENARIOS,
 ): Scenario[] {
-  return [...catalog]
-    .sort((left, right) => {
-      const scoreDelta = scoreScenario(right, input) - scoreScenario(left, input);
-      if (scoreDelta !== 0) return scoreDelta;
-      if (left.id < right.id) return -1;
-      if (left.id > right.id) return 1;
-      return 0;
-    })
-    .slice(0, 3);
+  return [...catalog].sort((left, right) => compareScenarios(input, left, right)).slice(0, 3);
 }
 
+/** Orders a higher score first, then the scenario id, so the three results stay stable. */
+function compareScenarios(
+  input: { level: PlacementLevel; goals: readonly LearningGoal[] },
+  left: Scenario,
+  right: Scenario,
+): number {
+  const scoreDelta = scoreScenario(right, input) - scoreScenario(left, input);
+  if (scoreDelta !== 0) return scoreDelta;
+  if (left.id < right.id) return -1;
+  if (left.id > right.id) return 1;
+  return 0;
+}
+
+/**
+ * Scores a shared goal above an exact level, and an exact level above a neighboring one.
+ */
 function scoreScenario(
   scenario: Scenario,
   input: { level: PlacementLevel; goals: readonly LearningGoal[] },

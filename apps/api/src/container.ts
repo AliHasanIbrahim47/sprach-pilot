@@ -120,6 +120,9 @@ export interface ContainerOverrides {
   onboarding?: OnboardingOverrides;
 }
 
+/**
+ * Builds the process object graph, including onboarding and the combined metrics output.
+ */
 export function createContainer(
   config: ApiConfig,
   overrides: ContainerOverrides = {},

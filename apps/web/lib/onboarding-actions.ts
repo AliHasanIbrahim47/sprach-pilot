@@ -17,6 +17,9 @@ import {
 import { apiFetch } from "./api-client";
 import type { OnboardingActionResult } from "./onboarding-result";
 
+/**
+ * Persists one wizard step. An invalid body or a failed request is not saved.
+ */
 export async function saveOnboardingStep(
   input: OnboardingStepBody,
 ): Promise<OnboardingActionResult<OnboardingResponse>> {
@@ -35,6 +38,9 @@ export async function saveOnboardingStep(
   }
 }
 
+/**
+ * Asks the API which level these answers suggest.
+ */
 export async function scorePlacementQuiz(
   input: QuizSubmission,
 ): Promise<OnboardingActionResult<QuizResult>> {
@@ -53,6 +59,9 @@ export async function scorePlacementQuiz(
   }
 }
 
+/**
+ * Finishes the wizard when the required answers are already stored.
+ */
 export async function completeOnboarding(): Promise<OnboardingActionResult<OnboardingResponse>> {
   try {
     const data = await apiFetch<OnboardingResponse>("/v1/onboarding/complete", { method: "POST" });
@@ -62,6 +71,9 @@ export async function completeOnboarding(): Promise<OnboardingActionResult<Onboa
   }
 }
 
+/**
+ * Closes the wizard without those answers.
+ */
 export async function skipOnboarding(): Promise<OnboardingActionResult<OnboardingResponse>> {
   try {
     const data = await apiFetch<OnboardingResponse>("/v1/onboarding/skip", { method: "POST" });
@@ -71,6 +83,9 @@ export async function skipOnboarding(): Promise<OnboardingActionResult<Onboardin
   }
 }
 
+/**
+ * Looks up cities for the query, or returns none when the query is too short.
+ */
 export async function searchCities(query: string): Promise<CitySuggestion[]> {
   const parsed = citySearchQuerySchema.safeParse({ q: query });
   if (!parsed.success) return [];

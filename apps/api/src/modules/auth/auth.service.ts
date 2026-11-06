@@ -258,6 +258,9 @@ export function createAuthService(dependencies: AuthServiceDependencies): AuthSe
       return acceptedResponse();
     },
 
+    /**
+     * Checks the password and reports whether this session still needs the onboarding wizard.
+     */
     async login(input, context) {
       const email = normalizeEmail(input.email);
       const ipHash = hashIp(context.ip, ipHashSecret);

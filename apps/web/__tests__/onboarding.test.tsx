@@ -31,6 +31,9 @@ function renderWithMessages(ui: ReactNode) {
   );
 }
 
+/**
+ * A wizard profile that has not been finished or skipped.
+ */
 function pending(step: OnboardingResponse["step"]): OnboardingResponse {
   return {
     status: "pending",

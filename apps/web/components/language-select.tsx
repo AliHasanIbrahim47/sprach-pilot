@@ -2,7 +2,7 @@
 
 import { ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type KeyboardEvent, useState } from "react";
+import { type FocusEvent, type KeyboardEvent, useState } from "react";
 
 import { type AppLocale, localeNames, locales } from "@/i18n/config";
 import { cn } from "@/lib/utils";
@@ -15,6 +15,9 @@ interface LanguageSelectProps {
   className?: string;
 }
 
+/**
+ * Shared language menu used by the header and the onboarding wizard.
+ */
 export function LanguageSelect({
   value,
   onChange,
@@ -26,23 +29,28 @@ export function LanguageSelect({
   const [isOpen, setIsOpen] = useState(false);
   const label = labelledBy ? undefined : t("language");
 
+  /**
+   * Closes the menu and reports a locale only when it differs from the current value.
+   */
   function selectLocale(next: AppLocale): void {
     setIsOpen(false);
     if (next !== value) onChange(next);
   }
 
+  /**
+   * Closes the menu when Escape is pressed.
+   */
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
     if (event.key === "Escape") setIsOpen(false);
   }
 
+  /** Closes the menu when focus moves outside this control. */
+  function handleBlur(event: FocusEvent<HTMLDivElement>): void {
+    if (!event.currentTarget.contains(event.relatedTarget)) setIsOpen(false);
+  }
+
   return (
-    <div
-      className={cn("relative w-fit", className)}
-      onKeyDown={handleKeyDown}
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) setIsOpen(false);
-      }}
-    >
+    <div className={cn("relative w-fit", className)} onKeyDown={handleKeyDown} onBlur={handleBlur}>
       <button
         id={id}
         type="button"

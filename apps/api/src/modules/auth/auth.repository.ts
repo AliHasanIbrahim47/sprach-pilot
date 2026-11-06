@@ -81,6 +81,9 @@ const userInclude = {
   profile: { select: { uiLocale: true, onboardingCompletedAt: true, onboardingSkippedAt: true } },
 } as const;
 
+/**
+ * Maps a user and profile row into the auth record. A missing profile still needs onboarding.
+ */
 function fromPrisma(user: {
   id: string;
   email: string;
@@ -176,6 +179,9 @@ export function createMemoryUserRepository(): MemoryUserRepository {
       return user ? toRecord(user) : null;
     },
 
+    /**
+     * Stores an in-memory user whose onboarding has not been finished or skipped.
+     */
     async createWithConsent(input) {
       if (users.has(input.email)) return { status: "duplicate" };
       const record = {

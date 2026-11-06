@@ -11,6 +11,9 @@ export function LanguageSwitcher(): React.JSX.Element {
   const pathname = usePathname();
   const router = useRouter();
 
+  /**
+   * Switches the current page into the chosen locale.
+   */
   function selectLocale(next: AppLocale): void {
     if (next === locale) return;
     router.replace(pathname, { locale: next });

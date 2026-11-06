@@ -14,6 +14,9 @@ interface CafeHomeProps {
   onSave: (cityId: string) => Promise<boolean>;
 }
 
+/**
+ * Shows events near the saved city, or asks for a city when that step was skipped.
+ */
 export function CafeHome({
   needsCity,
   cityName,
@@ -27,6 +30,9 @@ export function CafeHome({
   const [isSaving, setIsSaving] = useState(false);
   const [hasError, setHasError] = useState(false);
 
+  /**
+   * Stores the chosen city and hides the prompt when the API accepts it.
+   */
   async function handleSave(): Promise<void> {
     if (!selected) return;
     setIsSaving(true);

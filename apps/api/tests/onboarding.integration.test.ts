@@ -77,6 +77,9 @@ async function registerAndLogin(app: ReturnType<typeof createApp>, email: string
   return cookieHeader(login, ACCESS_TOKEN_COOKIE);
 }
 
+/**
+ * Reads one Set-Cookie value for the named cookie.
+ */
 function cookieHeader(response: request.Response, name: string): string {
   const raw = response.headers["set-cookie"];
   const cookies = Array.isArray(raw) ? raw : raw ? [raw] : [];
@@ -86,14 +89,22 @@ function cookieHeader(response: request.Response, name: string): string {
   return `${name}=${value}`;
 }
 
+/** Uses a correct choice for the first answers and a wrong choice for the rest. */
+function choiceForScore(
+  item: (typeof QUIZ_ITEMS)[number],
+  index: number,
+  correctCount: number,
+): string {
+  if (index < correctCount) return item.correctChoiceId;
+  const wrong = item.choices.find((choice) => choice.id !== item.correctChoiceId);
+  return wrong?.id ?? "b";
+}
+
 function answersWithScore(correctCount: number) {
   return {
     answers: QUIZ_ITEMS.map((item, index) => ({
       itemId: item.id,
-      choiceId:
-        index < correctCount
-          ? item.correctChoiceId
-          : (item.choices.find((choice) => choice.id !== item.correctChoiceId)?.id ?? "b"),
+      choiceId: choiceForScore(item, index, correctCount),
     })),
   };
 }

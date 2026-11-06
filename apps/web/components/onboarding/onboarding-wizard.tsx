@@ -62,6 +62,9 @@ interface OnboardingWizardProps {
   onSearchCities: (query: string) => Promise<CitySuggestion[]>;
 }
 
+/**
+ * Five-step wizard. The server keeps the resume point, and Back moves only this screen.
+ */
 export function OnboardingWizard({
   initial,
   quizItems,
@@ -105,6 +108,9 @@ export function OnboardingWizard({
     step: t(STEP_LABEL[view]),
   });
 
+  /**
+   * Saves one step and shows the next one. A new app language also switches the page locale.
+   */
   async function persist(body: OnboardingStepBody): Promise<boolean> {
     setError("");
     setIsBusy(true);
@@ -126,6 +132,9 @@ export function OnboardingWizard({
     }
   }
 
+  /**
+   * Saves the city step, completes onboarding, and opens the dashboard.
+   */
   async function finish(body: OnboardingStepBody): Promise<void> {
     const saved = await persist(body);
     if (!saved) return;
@@ -142,6 +151,9 @@ export function OnboardingWizard({
     }
   }
 
+  /**
+   * Closes the wizard and opens the dashboard.
+   */
   async function handleSkip(): Promise<void> {
     setError("");
     setIsBusy(true);
@@ -157,11 +169,17 @@ export function OnboardingWizard({
     }
   }
 
+  /**
+   * Shows the previous step without writing to the server.
+   */
   function handleBack(): void {
     const previous = ONBOARDING_STEPS[stepIndex - 1];
     if (previous) setView(previous);
   }
 
+  /**
+   * Requires one native language, then saves the app language and those languages.
+   */
   async function handleLanguages(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (nativeLanguages.length === 0) {
@@ -176,6 +194,9 @@ export function OnboardingWizard({
     await persist({ step: "level", cefrLevel });
   }
 
+  /**
+   * Scores the quiz, then saves the suggested level or the level the learner chose instead.
+   */
   async function handleQuiz(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (quizResult) {
@@ -206,6 +227,9 @@ export function OnboardingWizard({
     }
   }
 
+  /**
+   * Requires one goal, then saves the selection.
+   */
   async function handleGoals(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (goals.length === 0) {
@@ -215,6 +239,9 @@ export function OnboardingWizard({
     await persist({ step: "goals", goals });
   }
 
+  /**
+   * Saves the chosen city and finishes onboarding.
+   */
   async function handleCity(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (!selectedCity) {
@@ -472,6 +499,9 @@ function StepHeading({
   );
 }
 
+/**
+ * Back, continue, and skip controls for the current step.
+ */
 function WizardActions({
   isBusy,
   onBack,
@@ -501,6 +531,9 @@ function WizardActions({
   );
 }
 
+/**
+ * Plays the question audio and reveals the German transcript only when asked.
+ */
 function ListeningClip({
   itemId,
   transcript,
@@ -520,6 +553,9 @@ function ListeningClip({
     };
   }, []);
 
+  /**
+   * Restarts this question's clip and reports a failure without submitting the form.
+   */
   function handlePlay(): void {
     setHasPlayError(false);
     const audio = audioRef.current ?? new Audio(`/quiz/${itemId}.mp3`);

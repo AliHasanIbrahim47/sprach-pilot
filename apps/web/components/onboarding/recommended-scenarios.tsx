@@ -5,6 +5,9 @@ interface RecommendedScenariosProps {
   scenarios: readonly Scenario[];
 }
 
+/**
+ * Renders the German scenario titles chosen for this learner.
+ */
 export function RecommendedScenarios({
   title,
   scenarios,

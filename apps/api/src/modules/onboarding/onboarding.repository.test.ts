@@ -23,9 +23,15 @@ function createFakeClient(initial: StoredProfile[] = []) {
   const rows = new Map(initial.map((row) => [row.userId, row]));
   return {
     profile: {
+      /**
+       * Returns the stored profile, or null when this fake client has no row for the user.
+       */
       async findUnique({ where }: { where: { userId: string } }) {
         return rows.get(where.userId) ?? null;
       },
+      /**
+       * Inserts a default profile, or rejects a second profile for the same user.
+       */
       async create({ data }: { data: { userId: string } }) {
         if (rows.has(data.userId)) {
           throw new Prisma.PrismaClientKnownRequestError("unique", {

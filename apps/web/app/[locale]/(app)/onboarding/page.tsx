@@ -15,6 +15,9 @@ interface OnboardingPageProps {
   params: Promise<{ locale: string }>;
 }
 
+/**
+ * Loads the saved wizard and quiz. A learner who already finished or skipped goes to the dashboard.
+ */
 export default async function OnboardingPage({
   params,
 }: OnboardingPageProps): Promise<React.JSX.Element> {

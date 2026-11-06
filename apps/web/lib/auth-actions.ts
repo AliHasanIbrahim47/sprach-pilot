@@ -54,6 +54,9 @@ export async function registerAccount(input: RegisterBody): Promise<AuthActionRe
   }
 }
 
+/**
+ * Signs in and reports whether the wizard should open next.
+ */
 export async function loginAccount(input: LoginBody): Promise<AuthActionResult> {
   const parsed = loginBodySchema.safeParse(input);
   if (!parsed.success) {

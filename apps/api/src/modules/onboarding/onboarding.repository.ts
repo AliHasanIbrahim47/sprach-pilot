@@ -33,6 +33,9 @@ export interface OnboardingRepository {
 
 export function createOnboardingRepository(client: PrismaClient = prisma): OnboardingRepository {
   return {
+    /**
+     * Loads the profile, creating a pending one when the account has none. A deleted profile stays missing.
+     */
     async get(userId) {
       const row = await client.profile.findUnique({ where: { userId } });
       if (row?.deletedAt) throw new NotFoundError("Profile not found");
@@ -51,6 +54,9 @@ export function createOnboardingRepository(client: PrismaClient = prisma): Onboa
       }
     },
 
+    /**
+     * Writes the onboarding fields. A missing profile becomes a not-found error.
+     */
     async save(profile) {
       try {
         await client.profile.update({
@@ -83,6 +89,9 @@ export function createMemoryOnboardingRepository(): OnboardingRepository {
   const rows = new Map<string, OnboardingProfile>();
 
   return {
+    /**
+     * Returns a copy of the stored profile, or a pending default before the first save.
+     */
     async get(userId) {
       const existing = rows.get(userId);
       return existing ? cloneProfile(existing) : defaultProfile(userId);
@@ -108,6 +117,9 @@ function defaultProfile(userId: string): OnboardingProfile {
   };
 }
 
+/**
+ * Copies the profile so a caller cannot change the stored row.
+ */
 function cloneProfile(profile: OnboardingProfile): OnboardingProfile {
   return {
     ...profile,
@@ -119,6 +131,9 @@ function cloneProfile(profile: OnboardingProfile): OnboardingProfile {
   };
 }
 
+/**
+ * Converts a profile row, dropping locales, goals, and levels outside the wizard.
+ */
 function fromRow(row: {
   userId: string;
   uiLocale: string;
@@ -146,6 +161,9 @@ function fromRow(row: {
   };
 }
 
+/**
+ * Returns the city only when its id and centroid were both stored.
+ */
 function readCity(row: {
   cityId: string | null;
   cityName: string | null;
@@ -167,6 +185,9 @@ function isNativeLanguage(value: string): value is NativeLanguage {
   return (NATIVE_LANGUAGE_CODES as readonly string[]).includes(value);
 }
 
+/**
+ * True for the A1–C1 levels this wizard can save.
+ */
 function isPlacementLevel(value: string | null): value is PlacementLevel {
   return value !== null && (PLACEMENT_LEVELS as readonly string[]).includes(value);
 }
