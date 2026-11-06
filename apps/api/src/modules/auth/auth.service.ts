@@ -6,6 +6,7 @@ import {
   ConflictError,
   type EmailJob,
   ForbiddenError,
+  isOnboardingPending,
   isUiLocale,
   type LoginBody,
   type LoginSuccessResponse,
@@ -286,6 +287,7 @@ export function createAuthService(dependencies: AuthServiceDependencies): AuthSe
       const credentials = await issueCredentials(activeUser, context);
       return {
         status: "authenticated",
+        needsOnboarding: isOnboardingPending(activeUser),
         user: {
           id: activeUser.id,
           displayName: activeUser.displayName,

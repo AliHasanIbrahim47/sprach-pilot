@@ -25,6 +25,9 @@ export type LoginBody = z.infer<typeof loginBodySchema>;
 export const loginSuccessResponseSchema = z
   .object({
     status: z.literal("authenticated"),
+    needsOnboarding: z.boolean().meta({
+      description: "True until the learner finishes or skips onboarding.",
+    }),
     user: sessionUserSchema,
   })
   .meta({ id: "LoginSuccessResponse" });

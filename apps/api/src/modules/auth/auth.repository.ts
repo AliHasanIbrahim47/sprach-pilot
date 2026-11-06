@@ -11,6 +11,7 @@ export interface AuthUserRecord {
   emailVerifiedAt: Date | null;
   uiLocale: UiLocale;
   onboardingCompletedAt: Date | null;
+  onboardingSkippedAt: Date | null;
 }
 
 export interface ConsentDraft {
@@ -60,6 +61,7 @@ function toRecord(user: {
   emailVerifiedAt: Date | null;
   uiLocale: string;
   onboardingCompletedAt: Date | null;
+  onboardingSkippedAt: Date | null;
 }): AuthUserRecord {
   return {
     id: user.id,
@@ -71,11 +73,12 @@ function toRecord(user: {
     emailVerifiedAt: user.emailVerifiedAt,
     uiLocale: readLocale(user.uiLocale),
     onboardingCompletedAt: user.onboardingCompletedAt,
+    onboardingSkippedAt: user.onboardingSkippedAt,
   };
 }
 
 const userInclude = {
-  profile: { select: { uiLocale: true, onboardingCompletedAt: true } },
+  profile: { select: { uiLocale: true, onboardingCompletedAt: true, onboardingSkippedAt: true } },
 } as const;
 
 function fromPrisma(user: {
@@ -86,7 +89,11 @@ function fromPrisma(user: {
   role: string;
   deletedAt: Date | null;
   emailVerifiedAt: Date | null;
-  profile: { uiLocale: string; onboardingCompletedAt: Date | null } | null;
+  profile: {
+    uiLocale: string;
+    onboardingCompletedAt: Date | null;
+    onboardingSkippedAt: Date | null;
+  } | null;
 }): AuthUserRecord {
   return toRecord({
     id: user.id,
@@ -98,6 +105,7 @@ function fromPrisma(user: {
     emailVerifiedAt: user.emailVerifiedAt,
     uiLocale: user.profile?.uiLocale ?? "en",
     onboardingCompletedAt: user.profile?.onboardingCompletedAt ?? null,
+    onboardingSkippedAt: user.profile?.onboardingSkippedAt ?? null,
   });
 }
 
@@ -180,6 +188,7 @@ export function createMemoryUserRepository(): MemoryUserRepository {
         emailVerifiedAt: input.emailVerifiedAt ?? null,
         uiLocale: input.uiLocale,
         onboardingCompletedAt: null as Date | null,
+        onboardingSkippedAt: null as Date | null,
         consents: [...input.consents],
       };
       users.set(input.email, record);

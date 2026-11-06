@@ -124,6 +124,46 @@ export {
 } from "./jobs/email.js";
 export type { UiLocale } from "./locale.js";
 export { isUiLocale, UI_LOCALES, uiLocaleSchema } from "./locale.js";
+export type {
+  CityPoint,
+  CitySearchResponse,
+  CitySuggestion,
+  LearningGoal,
+  NativeLanguage,
+  OnboardingResponse,
+  OnboardingStatus,
+  OnboardingStep,
+  OnboardingStepBody,
+  PlacementLevel,
+  QuizItem,
+  QuizList,
+  QuizResult,
+  QuizSubmission,
+  Scenario,
+} from "./onboarding/contracts.js";
+export {
+  cityPointSchema,
+  citySearchQuerySchema,
+  citySearchResponseSchema,
+  citySuggestionSchema,
+  isOnboardingPending,
+  LEARNING_GOALS,
+  learningGoalSchema,
+  NATIVE_LANGUAGE_CODES,
+  nativeLanguageSchema,
+  ONBOARDING_STEPS,
+  onboardingResponseSchema,
+  onboardingStatusSchema,
+  onboardingStepBodySchema,
+  onboardingStepSchema,
+  PLACEMENT_LEVELS,
+  placementLevelSchema,
+  quizItemSchema,
+  quizListSchema,
+  quizResultSchema,
+  quizSubmissionSchema,
+  scenarioSchema,
+} from "./onboarding/contracts.js";
 export type { CursorPage, CursorPageMeta, CursorPaginationQuery } from "./pagination/cursor.js";
 export {
   createCursorPage,
