@@ -6,6 +6,7 @@ import {
   ConflictError,
   type EmailJob,
   ForbiddenError,
+  isOnboardingPending,
   isUiLocale,
   type LoginBody,
   type LoginSuccessResponse,
@@ -257,6 +258,9 @@ export function createAuthService(dependencies: AuthServiceDependencies): AuthSe
       return acceptedResponse();
     },
 
+    /**
+     * Checks the password and reports whether this session still needs the onboarding wizard.
+     */
     async login(input, context) {
       const email = normalizeEmail(input.email);
       const ipHash = hashIp(context.ip, ipHashSecret);
@@ -286,6 +290,7 @@ export function createAuthService(dependencies: AuthServiceDependencies): AuthSe
       const credentials = await issueCredentials(activeUser, context);
       return {
         status: "authenticated",
+        needsOnboarding: isOnboardingPending(activeUser),
         user: {
           id: activeUser.id,
           displayName: activeUser.displayName,

@@ -23,6 +23,15 @@ import { registerAcceptedResponseSchema, registerBodySchema } from "../auth/regi
 import { refreshSuccessResponseSchema, sessionListResponseSchema } from "../auth/sessions.js";
 import { problemDetailsSchema } from "../errors/problem-details.js";
 import { livenessResponseSchema, readinessResponseSchema } from "../health.js";
+import {
+  citySearchQuerySchema,
+  citySearchResponseSchema,
+  onboardingResponseSchema,
+  onboardingStepBodySchema,
+  quizListSchema,
+  quizResultSchema,
+  quizSubmissionSchema,
+} from "../onboarding/contracts.js";
 
 /**
  * OpenAPI 3.1 document built from Zod `.meta({ id })` annotations (Zod 4).
@@ -585,6 +594,132 @@ openApiRegistry.registerPath({
         },
       },
     },
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "get",
+  path: "/v1/onboarding",
+  tags: ["Onboarding"],
+  summary: "Read onboarding progress",
+  description:
+    "Server-side wizard state so a learner can resume on another device. Recommendations are present after completion.",
+  responses: {
+    200: {
+      description: "Current onboarding profile",
+      content: { "application/json": { schema: onboardingResponseSchema } },
+    },
+    401: problemResponse,
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "patch",
+  path: "/v1/onboarding",
+  tags: ["Onboarding"],
+  summary: "Save one onboarding step",
+  description:
+    "Persists languages, level, quiz choice, goals, or city. A city is stored as an id and approximate centroid. Skipping the city clears it.",
+  request: {
+    body: {
+      content: { "application/json": { schema: onboardingStepBodySchema } },
+      required: true,
+    },
+  },
+  responses: {
+    200: {
+      description: "Updated onboarding profile",
+      content: { "application/json": { schema: onboardingResponseSchema } },
+    },
+    400: problemResponse,
+    401: problemResponse,
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "get",
+  path: "/v1/onboarding/quiz",
+  tags: ["Onboarding"],
+  summary: "Placement quiz prompts",
+  description:
+    "Ten reading and listening items. Listening items include a transcript. Correct answers are not included.",
+  responses: {
+    200: {
+      description: "Quiz prompts",
+      content: { "application/json": { schema: quizListSchema } },
+    },
+    401: problemResponse,
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "post",
+  path: "/v1/onboarding/quiz",
+  tags: ["Onboarding"],
+  summary: "Score the placement quiz",
+  description:
+    "Suggests a CEFR level from the answers. The suggestion is not stored until the learner confirms or overrides it.",
+  request: {
+    body: {
+      content: { "application/json": { schema: quizSubmissionSchema } },
+      required: true,
+    },
+  },
+  responses: {
+    200: {
+      description: "Suggested level",
+      content: { "application/json": { schema: quizResultSchema } },
+    },
+    400: problemResponse,
+    401: problemResponse,
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "post",
+  path: "/v1/onboarding/complete",
+  tags: ["Onboarding"],
+  summary: "Finish onboarding",
+  description: "Marks onboarding complete and returns three scenarios matching level and goals.",
+  responses: {
+    200: {
+      description: "Completed profile and recommendations",
+      content: { "application/json": { schema: onboardingResponseSchema } },
+    },
+    400: problemResponse,
+    401: problemResponse,
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "post",
+  path: "/v1/onboarding/skip",
+  tags: ["Onboarding"],
+  summary: "Skip onboarding",
+  description: "Leaves the wizard unfinished. The dashboard no longer opens it.",
+  responses: {
+    200: {
+      description: "Skipped profile",
+      content: { "application/json": { schema: onboardingResponseSchema } },
+    },
+    401: problemResponse,
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "get",
+  path: "/v1/cities",
+  tags: ["Onboarding"],
+  summary: "Search German cities",
+  description: "Autocomplete by city name or postal code. Results use the city centroid.",
+  request: { query: citySearchQuerySchema },
+  responses: {
+    200: {
+      description: "Matching cities",
+      content: { "application/json": { schema: citySearchResponseSchema } },
+    },
+    400: problemResponse,
+    401: problemResponse,
   },
 });
 

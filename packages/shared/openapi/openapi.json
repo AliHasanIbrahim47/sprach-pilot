@@ -166,11 +166,15 @@
             "type": "string",
             "enum": ["authenticated"]
           },
+          "needsOnboarding": {
+            "type": "boolean",
+            "description": "True until the learner finishes or skips onboarding."
+          },
           "user": {
             "$ref": "#/components/schemas/SessionUser"
           }
         },
-        "required": ["status", "user"]
+        "required": ["status", "needsOnboarding", "user"]
       },
       "SessionUser": {
         "type": "object",
@@ -511,6 +515,382 @@
           }
         },
         "required": ["linkToken", "password"]
+      },
+      "OnboardingResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/OnboardingStatus"
+          },
+          "step": {
+            "$ref": "#/components/schemas/OnboardingStep"
+          },
+          "uiLocale": {
+            "type": "string",
+            "enum": ["en", "de", "ar", "uk", "tr"]
+          },
+          "nativeLanguages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NativeLanguage"
+            },
+            "maxItems": 5
+          },
+          "cefrLevel": {
+            "type": ["string", "null"],
+            "enum": ["A1", "A2", "B1", "B2", "C1", null]
+          },
+          "goals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LearningGoal"
+            },
+            "maxItems": 6
+          },
+          "city": {
+            "$ref": "#/components/schemas/CityPoint"
+          },
+          "needsCity": {
+            "type": "boolean"
+          },
+          "recommendations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Scenario"
+            },
+            "maxItems": 3
+          }
+        },
+        "required": [
+          "status",
+          "step",
+          "uiLocale",
+          "nativeLanguages",
+          "cefrLevel",
+          "goals",
+          "city",
+          "needsCity",
+          "recommendations"
+        ]
+      },
+      "OnboardingStatus": {
+        "type": "string",
+        "enum": ["pending", "completed", "skipped"]
+      },
+      "OnboardingStep": {
+        "type": "string",
+        "enum": ["languages", "level", "quiz", "goals", "city"]
+      },
+      "NativeLanguage": {
+        "type": "string",
+        "enum": ["en", "de", "ar", "tr", "uk", "ru", "pl", "fa", "es", "fr", "it", "ku"]
+      },
+      "LearningGoal": {
+        "type": "string",
+        "enum": ["work", "bureaucracy", "health", "housing", "social", "exam"]
+      },
+      "CityPoint": {
+        "type": ["object", "null"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "latitude": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "longitude": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          }
+        },
+        "required": ["id", "name", "latitude", "longitude"],
+        "description": "City id and approximate centroid. Not a street address or postal code."
+      },
+      "Scenario": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "level": {
+            "$ref": "#/components/schemas/PlacementLevel"
+          },
+          "goals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LearningGoal"
+            },
+            "minItems": 1,
+            "maxItems": 6
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          }
+        },
+        "required": ["id", "level", "goals", "title"]
+      },
+      "PlacementLevel": {
+        "type": "string",
+        "enum": ["A1", "A2", "B1", "B2", "C1"],
+        "description": "CEFR level the learner can choose during onboarding (A1–C1)."
+      },
+      "OnboardingStepBody": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "step": {
+                "type": "string",
+                "enum": ["languages"]
+              },
+              "uiLocale": {
+                "type": "string",
+                "enum": ["en", "de", "ar", "uk", "tr"]
+              },
+              "nativeLanguages": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/NativeLanguage"
+                },
+                "minItems": 1,
+                "maxItems": 5
+              }
+            },
+            "required": ["step", "uiLocale", "nativeLanguages"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "step": {
+                "type": "string",
+                "enum": ["level"]
+              },
+              "cefrLevel": {
+                "$ref": "#/components/schemas/PlacementLevel"
+              }
+            },
+            "required": ["step", "cefrLevel"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "step": {
+                "type": "string",
+                "enum": ["quiz"]
+              },
+              "skipped": {
+                "type": "boolean"
+              },
+              "cefrLevel": {
+                "type": ["string", "null"],
+                "enum": ["A1", "A2", "B1", "B2", "C1", null]
+              }
+            },
+            "required": ["step", "skipped", "cefrLevel"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "step": {
+                "type": "string",
+                "enum": ["goals"]
+              },
+              "goals": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/LearningGoal"
+                },
+                "minItems": 1,
+                "maxItems": 6
+              }
+            },
+            "required": ["step", "goals"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "step": {
+                "type": "string",
+                "enum": ["city"]
+              },
+              "skipped": {
+                "type": "boolean"
+              },
+              "cityId": {
+                "type": ["string", "null"],
+                "minLength": 1,
+                "maxLength": 64
+              }
+            },
+            "required": ["step", "skipped", "cityId"]
+          }
+        ]
+      },
+      "QuizList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuizItem"
+            }
+          }
+        },
+        "required": ["items"]
+      },
+      "QuizItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["reading", "listening"]
+          },
+          "level": {
+            "$ref": "#/components/schemas/PlacementLevel"
+          },
+          "prompt": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 400
+          },
+          "passage": {
+            "type": ["string", "null"],
+            "minLength": 1,
+            "maxLength": 600
+          },
+          "transcript": {
+            "type": ["string", "null"],
+            "minLength": 1,
+            "maxLength": 600
+          },
+          "choices": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 8
+                },
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 240
+                }
+              },
+              "required": ["id", "text"]
+            },
+            "minItems": 2,
+            "maxItems": 4
+          }
+        },
+        "required": ["id", "kind", "level", "prompt", "passage", "transcript", "choices"]
+      },
+      "QuizResult": {
+        "type": "object",
+        "properties": {
+          "suggestedLevel": {
+            "$ref": "#/components/schemas/PlacementLevel"
+          },
+          "correctCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "itemCount": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          }
+        },
+        "required": ["suggestedLevel", "correctCount", "itemCount"]
+      },
+      "QuizSubmission": {
+        "type": "object",
+        "properties": {
+          "answers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "itemId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                "choiceId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 8
+                }
+              },
+              "required": ["itemId", "choiceId"]
+            }
+          }
+        },
+        "required": ["answers"]
+      },
+      "CitySearchResponse": {
+        "type": "object",
+        "properties": {
+          "cities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CitySuggestion"
+            },
+            "maxItems": 8
+          }
+        },
+        "required": ["cities"]
+      },
+      "CitySuggestion": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "matchedPostalCode": {
+            "type": "string",
+            "pattern": "^\\d{5}$"
+          },
+          "latitude": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "longitude": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          }
+        },
+        "required": ["id", "name", "matchedPostalCode", "latitude", "longitude"],
+        "description": "Autocomplete hit. Saving a city stores the id and centroid only."
       }
     },
     "parameters": {}
@@ -1311,6 +1691,277 @@
                       }
                     }
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/onboarding": {
+      "get": {
+        "tags": ["Onboarding"],
+        "summary": "Read onboarding progress",
+        "description": "Server-side wizard state so a learner can resume on another device. Recommendations are present after completion.",
+        "responses": {
+          "200": {
+            "description": "Current onboarding profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnboardingResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["Onboarding"],
+        "summary": "Save one onboarding step",
+        "description": "Persists languages, level, quiz choice, goals, or city. A city is stored as an id and approximate centroid. Skipping the city clears it.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnboardingStepBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated onboarding profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnboardingResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/onboarding/quiz": {
+      "get": {
+        "tags": ["Onboarding"],
+        "summary": "Placement quiz prompts",
+        "description": "Ten reading and listening items. Listening items include a transcript. Correct answers are not included.",
+        "responses": {
+          "200": {
+            "description": "Quiz prompts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuizList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Onboarding"],
+        "summary": "Score the placement quiz",
+        "description": "Suggests a CEFR level from the answers. The suggestion is not stored until the learner confirms or overrides it.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuizSubmission"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Suggested level",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuizResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/onboarding/complete": {
+      "post": {
+        "tags": ["Onboarding"],
+        "summary": "Finish onboarding",
+        "description": "Marks onboarding complete and returns three scenarios matching level and goals.",
+        "responses": {
+          "200": {
+            "description": "Completed profile and recommendations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnboardingResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/onboarding/skip": {
+      "post": {
+        "tags": ["Onboarding"],
+        "summary": "Skip onboarding",
+        "description": "Leaves the wizard unfinished. The dashboard no longer opens it.",
+        "responses": {
+          "200": {
+            "description": "Skipped profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnboardingResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/cities": {
+      "get": {
+        "tags": ["Onboarding"],
+        "summary": "Search German cities",
+        "description": "Autocomplete by city name or postal code. Results use the city centroid.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 40
+            },
+            "required": true,
+            "name": "q",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching cities",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CitySearchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }

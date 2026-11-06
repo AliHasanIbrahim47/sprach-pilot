@@ -11,6 +11,7 @@ export interface AuthUserRecord {
   emailVerifiedAt: Date | null;
   uiLocale: UiLocale;
   onboardingCompletedAt: Date | null;
+  onboardingSkippedAt: Date | null;
 }
 
 export interface ConsentDraft {
@@ -60,6 +61,7 @@ function toRecord(user: {
   emailVerifiedAt: Date | null;
   uiLocale: string;
   onboardingCompletedAt: Date | null;
+  onboardingSkippedAt: Date | null;
 }): AuthUserRecord {
   return {
     id: user.id,
@@ -71,13 +73,17 @@ function toRecord(user: {
     emailVerifiedAt: user.emailVerifiedAt,
     uiLocale: readLocale(user.uiLocale),
     onboardingCompletedAt: user.onboardingCompletedAt,
+    onboardingSkippedAt: user.onboardingSkippedAt,
   };
 }
 
 const userInclude = {
-  profile: { select: { uiLocale: true, onboardingCompletedAt: true } },
+  profile: { select: { uiLocale: true, onboardingCompletedAt: true, onboardingSkippedAt: true } },
 } as const;
 
+/**
+ * Maps a user and profile row into the auth record. A missing profile still needs onboarding.
+ */
 function fromPrisma(user: {
   id: string;
   email: string;
@@ -86,7 +92,11 @@ function fromPrisma(user: {
   role: string;
   deletedAt: Date | null;
   emailVerifiedAt: Date | null;
-  profile: { uiLocale: string; onboardingCompletedAt: Date | null } | null;
+  profile: {
+    uiLocale: string;
+    onboardingCompletedAt: Date | null;
+    onboardingSkippedAt: Date | null;
+  } | null;
 }): AuthUserRecord {
   return toRecord({
     id: user.id,
@@ -98,6 +108,7 @@ function fromPrisma(user: {
     emailVerifiedAt: user.emailVerifiedAt,
     uiLocale: user.profile?.uiLocale ?? "en",
     onboardingCompletedAt: user.profile?.onboardingCompletedAt ?? null,
+    onboardingSkippedAt: user.profile?.onboardingSkippedAt ?? null,
   });
 }
 
@@ -168,6 +179,9 @@ export function createMemoryUserRepository(): MemoryUserRepository {
       return user ? toRecord(user) : null;
     },
 
+    /**
+     * Stores an in-memory user whose onboarding has not been finished or skipped.
+     */
     async createWithConsent(input) {
       if (users.has(input.email)) return { status: "duplicate" };
       const record = {
@@ -180,6 +194,7 @@ export function createMemoryUserRepository(): MemoryUserRepository {
         emailVerifiedAt: input.emailVerifiedAt ?? null,
         uiLocale: input.uiLocale,
         onboardingCompletedAt: null as Date | null,
+        onboardingSkippedAt: null as Date | null,
         consents: [...input.consents],
       };
       users.set(input.email, record);

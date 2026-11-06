@@ -37,6 +37,16 @@ enum CefrLevel {
   @@map("cefr_level")
 }
 
+enum OnboardingStep {
+  languages
+  level
+  quiz
+  goals
+  city
+
+  @@map("onboarding_step")
+}
+
 model User {
   id String @id @default(uuid(7)) @db.Uuid
 
@@ -107,14 +117,26 @@ model Profile {
   /// Learning goals (work, bureaucracy, health, housing, social, exam, …)
   goals String[] @default([])
 
-  /// @pii — city label for display; precise geo arrives in SP-047
+  /// @pii — city label for display. Not a street address.
   cityName String? @map("city_name")
 
+  /// Stable city id (for example `de-berlin`). Precise geo arrives in SP-047.
   cityId String? @map("city_id")
+
+  /// Approximate city centroid. Not an address and not a postal-code point.
+  cityLatitude Decimal? @map("city_latitude") @db.Decimal(9, 6)
+
+  /// Approximate city centroid. Not an address and not a postal-code point.
+  cityLongitude Decimal? @map("city_longitude") @db.Decimal(9, 6)
 
   timezone String @default("Europe/Berlin")
 
+  /// Furthest wizard step, so onboarding can resume on another device.
+  onboardingStep OnboardingStep @default(languages) @map("onboarding_step")
+
   onboardingCompletedAt DateTime? @map("onboarding_completed_at") @db.Timestamptz(3)
+
+  onboardingSkippedAt DateTime? @map("onboarding_skipped_at") @db.Timestamptz(3)
 
   /// @pii — public object-storage key/URL once uploads exist (SP-018)
   avatarUrl String? @map("avatar_url")

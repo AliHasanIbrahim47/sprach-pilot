@@ -62,6 +62,17 @@ import { createHealthRouter } from "./modules/health/health.routes.js";
 import type { DependencyHealthPort } from "./modules/health/health.schemas.js";
 import { createHealthService } from "./modules/health/health.service.js";
 import { createMetricsRouter } from "./modules/metrics/metrics.routes.js";
+import { createOnboardingMetrics, type OnboardingMetrics } from "./modules/onboarding/metrics.js";
+import {
+  createOnboardingController,
+  type OnboardingController,
+} from "./modules/onboarding/onboarding.controller.js";
+import {
+  createOnboardingRepository,
+  type OnboardingRepository,
+} from "./modules/onboarding/onboarding.repository.js";
+import { createOnboardingRouter } from "./modules/onboarding/onboarding.routes.js";
+import { createOnboardingService } from "./modules/onboarding/onboarding.service.js";
 
 export interface AppContainer {
   config: ApiConfig;
@@ -70,6 +81,8 @@ export interface AppContainer {
   authController: AuthController;
   authRouter: Router;
   adminRouter: Router;
+  onboardingRouter: Router;
+  onboardingController: OnboardingController;
   requireAuth: RequestHandler;
   requireVerifiedEmail: RequestHandler;
   jwksRouter: Router;
@@ -95,11 +108,21 @@ export interface AuthOverrides {
   roles?: RoleRepository;
 }
 
+export interface OnboardingOverrides {
+  profiles?: OnboardingRepository;
+  metrics?: OnboardingMetrics;
+  clock?: () => Date;
+}
+
 export interface ContainerOverrides {
   dependencyChecks?: DependencyHealthPort[];
   auth?: AuthOverrides;
+  onboarding?: OnboardingOverrides;
 }
 
+/**
+ * Builds the process object graph, including onboarding and the combined metrics output.
+ */
 export function createContainer(
   config: ApiConfig,
   overrides: ContainerOverrides = {},
@@ -115,6 +138,7 @@ export function createContainer(
   const healthRouter = createHealthRouter(healthController);
 
   const metrics = overrides.auth?.metrics ?? createAuthMetrics();
+  const onboardingMetrics = overrides.onboarding?.metrics ?? createOnboardingMetrics();
   const redisPorts = resolveRedisPorts(overrides.auth, config);
   const tokens =
     overrides.auth?.tokens ??
@@ -190,7 +214,19 @@ export function createContainer(
     requireAuth,
   );
   const jwksRouter = createJwksRouter(authController);
-  const metricsRouter = createMetricsRouter(metrics);
+  const onboardingController = createOnboardingController(
+    createOnboardingService({
+      profiles: overrides.onboarding?.profiles ?? createOnboardingRepository(),
+      metrics: onboardingMetrics,
+      clock: overrides.onboarding?.clock ?? clock,
+    }),
+  );
+  const onboardingRouter = createOnboardingRouter(onboardingController, requireAuth);
+  const metricsRouter = createMetricsRouter({
+    renderPrometheus() {
+      return `${metrics.renderPrometheus()}${onboardingMetrics.renderPrometheus()}`;
+    },
+  });
 
   const docsRouter = shouldEnableApiDocs({
     nodeEnv: config.nodeEnv,
@@ -206,6 +242,8 @@ export function createContainer(
     authController,
     authRouter,
     adminRouter,
+    onboardingRouter,
+    onboardingController,
     requireAuth,
     requireVerifiedEmail: createRequireVerifiedEmail(users),
     jwksRouter,

@@ -1,9 +1,12 @@
 import { Router } from "express";
 
 import { bindRoute, tagRouter } from "../access/route-access.js";
-import type { AuthMetrics } from "../auth/metrics.js";
 
-export function createMetricsRouter(metrics: AuthMetrics): Router {
+export interface PrometheusMetrics {
+  renderPrometheus(): string;
+}
+
+export function createMetricsRouter(metrics: PrometheusMetrics): Router {
   const router = tagRouter(Router(), "");
 
   bindRoute(router, "get", "/metrics", { kind: "public" }, [

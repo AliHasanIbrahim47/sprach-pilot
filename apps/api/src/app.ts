@@ -13,6 +13,9 @@ export type CreateAppOptions = {
   registerV1?: (v1: ExpressRouter) => void;
 };
 
+/**
+ * Builds the Express app, including the onboarding routes, without opening a port.
+ */
 export function createApp(container: AppContainer, options: CreateAppOptions = {}): Express {
   const app = express();
   const logger = createConsoleLogger("api");
@@ -31,6 +34,7 @@ export function createApp(container: AppContainer, options: CreateAppOptions = {
   });
   v1.use("/auth", container.authRouter);
   v1.use(container.adminRouter);
+  v1.use(container.onboardingRouter);
   options.registerV1?.(v1);
   app.use("/v1", v1);
   app.use(container.metricsRouter);

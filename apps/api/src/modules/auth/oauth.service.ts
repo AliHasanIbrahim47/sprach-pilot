@@ -3,6 +3,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import {
   AUTH_COPY,
   ForbiddenError,
+  isOnboardingPending,
   isUiLocale,
   type OAuthAuthenticatedResponse,
   type OAuthCallbackResponse,
@@ -140,6 +141,7 @@ export function createOAuthService(dependencies: OAuthServiceDependencies): OAut
       displayName: string;
       emailVerifiedAt: Date | null;
       onboardingCompletedAt: Date | null;
+      onboardingSkippedAt: Date | null;
     },
     context: AuthRequestContext,
     meta: { returnTo: string | null; locale: string },
@@ -148,7 +150,7 @@ export function createOAuthService(dependencies: OAuthServiceDependencies): OAut
     metrics.recordLogin("success");
     return {
       status: "authenticated",
-      needsOnboarding: user.onboardingCompletedAt === null,
+      needsOnboarding: isOnboardingPending(user),
       locale: meta.locale,
       user: {
         id: user.id,

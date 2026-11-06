@@ -146,6 +146,18 @@ describe("login form", () => {
     expect(await screen.findByText(AUTH_COPY.invalidCredentials)).toBeInTheDocument();
   });
 
+  it("opens onboarding after the first sign-in", async () => {
+    loginAccount.mockResolvedValue({ ok: true, intent: "login", needsOnboarding: true });
+    const user = userEvent.setup();
+    renderForm(<LoginForm nextPath="/app/decks" />);
+
+    await user.type(screen.getByLabelText("Email"), "learner@example.com");
+    await user.type(screen.getByLabelText("Password"), "correct-horse-battery");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(routerReplace).toHaveBeenCalledWith("/onboarding");
+  });
+
   it("continues to the requested path after a successful sign-in", async () => {
     loginAccount.mockResolvedValue({ ok: true, intent: "login" });
     const user = userEvent.setup();
