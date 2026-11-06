@@ -4,7 +4,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { apiReference } from "@scalar/express-api-reference";
-import { type Request, type Response,Router } from "express";
+import { type Request, type Response, Router } from "express";
+
+import { bindRoute, declareMount, tagRouter } from "../access/route-access.js";
 
 const require = createRequire(import.meta.url);
 
@@ -21,12 +23,14 @@ function loadOpenApiDocument(): unknown {
 }
 
 export function createDocsRouter(): Router {
-  const router = Router();
+  const router = tagRouter(Router(), "");
   const document = loadOpenApiDocument();
 
-  router.get("/openapi.json", (_req: Request, res: Response) => {
-    res.status(200).json(document);
-  });
+  bindRoute(router, "get", "/openapi.json", { kind: "public" }, [
+    (_req: Request, res: Response) => {
+      res.status(200).json(document);
+    },
+  ]);
 
   router.use(
     "/docs",
@@ -35,6 +39,7 @@ export function createDocsRouter(): Router {
       pageTitle: "SprachPilot API",
     }),
   );
+  declareMount(router, "/docs", { kind: "public" });
 
   return router;
 }

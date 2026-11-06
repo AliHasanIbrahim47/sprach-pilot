@@ -10,6 +10,10 @@ import {
 } from "./infrastructure/health-checks.js";
 import { createConsoleLogger } from "./infrastructure/logger.js";
 import { createReadyRedisCommands } from "./infrastructure/ready-redis.js";
+import { createRoleController } from "./modules/access/role.controller.js";
+import { createRoleRepository, type RoleRepository } from "./modules/access/role.repository.js";
+import { createAdminRouter } from "./modules/access/role.routes.js";
+import { createRoleService } from "./modules/access/role.service.js";
 import {
   type AccountRepository,
   createAccountRepository,
@@ -65,6 +69,7 @@ export interface AppContainer {
   healthRouter: Router;
   authController: AuthController;
   authRouter: Router;
+  adminRouter: Router;
   requireAuth: RequestHandler;
   requireVerifiedEmail: RequestHandler;
   jwksRouter: Router;
@@ -87,6 +92,7 @@ export interface AuthOverrides {
   clock?: () => Date;
   oauthState?: OAuthStateStore;
   googleOAuth?: GoogleOAuthProvider | null;
+  roles?: RoleRepository;
 }
 
 export interface ContainerOverrides {
@@ -179,6 +185,10 @@ export function createContainer(
     (req) => readOptionalUserId(req, tokens),
   );
   const authRouter = createAuthRouter(authController, requireAuth);
+  const adminRouter = createAdminRouter(
+    createRoleController(createRoleService(overrides.auth?.roles ?? createRoleRepository())),
+    requireAuth,
+  );
   const jwksRouter = createJwksRouter(authController);
   const metricsRouter = createMetricsRouter(metrics);
 
@@ -195,6 +205,7 @@ export function createContainer(
     healthRouter,
     authController,
     authRouter,
+    adminRouter,
     requireAuth,
     requireVerifiedEmail: createRequireVerifiedEmail(users),
     jwksRouter,

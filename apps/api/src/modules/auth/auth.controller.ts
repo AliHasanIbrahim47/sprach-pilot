@@ -26,6 +26,7 @@ import {
 } from "./auth-cookies.js";
 import type { OAuthService } from "./oauth.service.js";
 import { getRequestAuth } from "./require-auth.js";
+import { sessionRole } from "./session-role.js";
 
 export interface AuthController {
   register(req: Request, res: Response): Promise<void>;
@@ -166,7 +167,7 @@ export function createAuthController(
 
     async me(req, res) {
       const auth = getRequestAuth(req);
-      const result = await service.getAccount(auth.sub);
+      const result = await service.getAccount(auth.sub, sessionRole(auth.role));
       noStore(res);
       res.status(200).json(result);
     },

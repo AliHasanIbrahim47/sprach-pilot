@@ -42,6 +42,7 @@ export interface UserRepository {
 export interface MemoryUserRepository extends UserRepository {
   records(): readonly (AuthUserRecord & { consents: readonly ConsentDraft[] })[];
   markDeleted(email: string): void;
+  arrangeRole(email: string, role: string): void;
 }
 
 function readLocale(value: string | null | undefined): UiLocale {
@@ -205,6 +206,12 @@ export function createMemoryUserRepository(): MemoryUserRepository {
       const user = users.get(email);
       if (!user) return;
       user.deletedAt = new Date(0);
+    },
+
+    arrangeRole(email: string, role: string) {
+      const user = users.get(email);
+      if (!user) throw new Error(`no user for ${email}`);
+      user.role = role;
     },
   };
 }

@@ -19,6 +19,7 @@ import {
   type SessionListResponse,
   type UiLocale,
   UnauthorizedError,
+  type UserRole,
   ValidationError,
   type VerifyEmailResponse,
 } from "@sprachpilot/shared";
@@ -36,6 +37,7 @@ import type { AuthMetrics } from "./metrics.js";
 import type { PasswordHasher } from "./password-hasher.js";
 import { isCommonPassword } from "./password-policy.js";
 import type { SessionRepository } from "./session.repository.js";
+import { sessionRole } from "./session-role.js";
 import type { TokenService } from "./token.service.js";
 
 /** Draft policy versions until SP-081 publishes the final documents. */
@@ -106,7 +108,7 @@ export interface AuthService {
     context: AuthRequestContext,
   ): Promise<RegisterAcceptedResponse>;
   resetPassword(input: PasswordResetBody): Promise<PasswordResetResponse>;
-  getAccount(userId: string): Promise<AccountResponse>;
+  getAccount(userId: string, tokenRole: UserRole): Promise<AccountResponse>;
 }
 
 function acceptedResponse(): RegisterAcceptedResponse {
@@ -288,6 +290,7 @@ export function createAuthService(dependencies: AuthServiceDependencies): AuthSe
           id: activeUser.id,
           displayName: activeUser.displayName,
           emailVerified: activeUser.emailVerifiedAt !== null,
+          role: sessionRole(activeUser.role),
         },
         credentials,
       };
@@ -472,7 +475,7 @@ export function createAuthService(dependencies: AuthServiceDependencies): AuthSe
       return { status: "reset", message: AUTH_COPY.passwordResetComplete };
     },
 
-    async getAccount(userId) {
+    async getAccount(userId, tokenRole) {
       const user = await users.findById(userId);
       if (!user || user.deletedAt) throw new UnauthorizedError();
       const providers = await accounts.listProviders(userId);
@@ -484,6 +487,7 @@ export function createAuthService(dependencies: AuthServiceDependencies): AuthSe
         locale: user.uiLocale,
         hasPassword: user.passwordHash !== null,
         googleLinked: providers.includes(GOOGLE_PROVIDER),
+        role: tokenRole,
       };
     },
   };

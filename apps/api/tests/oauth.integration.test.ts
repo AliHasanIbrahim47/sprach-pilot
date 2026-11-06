@@ -109,7 +109,7 @@ function createOAuthApp(
     throttle: createMemoryLoginThrottle(),
     metrics,
     hasher: createFakeHasher(),
-    clock: () => new Date("2026-10-10T12:00:00.000Z"),
+    clock: () => new Date(),
     emailTokens: email.emailTokens,
     emailSends: email.emailSends,
     emailQueue: email.emailQueue,
@@ -165,6 +165,7 @@ describe("Google OAuth (SP-015)", () => {
 
     expect(response.status).toBe(200);
     expect(response.body.status).toBe("authenticated");
+    expect(response.body.user.role).toBe("learner");
     expect(response.body.needsOnboarding).toBe(true);
     expect(response.headers["set-cookie"]?.join(";") ?? "").toContain(ACCESS_TOKEN_COOKIE);
     expect(response.headers["set-cookie"]?.join(";") ?? "").toContain(REFRESH_TOKEN_COOKIE);
@@ -259,6 +260,7 @@ describe("Google OAuth (SP-015)", () => {
       password: "correct-horse-battery",
     });
     const cookie = linked.headers["set-cookie"];
+    expect(linked.status).toBe(200);
     expect(accounts.records()).toHaveLength(1);
 
     const unlink = await request(app).delete("/v1/auth/oauth/google").set("Cookie", cookie);

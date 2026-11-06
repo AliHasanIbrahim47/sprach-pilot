@@ -18,6 +18,7 @@ import {
   oauthGoogleCallbackBodySchema,
   oauthGoogleLinkBodySchema,
 } from "../auth/oauth.js";
+import { assignRoleBodySchema, assignRoleResponseSchema } from "../auth/permissions.js";
 import { registerAcceptedResponseSchema, registerBodySchema } from "../auth/register.js";
 import { refreshSuccessResponseSchema, sessionListResponseSchema } from "../auth/sessions.js";
 import { problemDetailsSchema } from "../errors/problem-details.js";
@@ -385,7 +386,7 @@ openApiRegistry.registerPath({
   tags: ["Auth"],
   summary: "Current account",
   description:
-    "Returns the signed-in account, including email verification, password presence, and Google link status.",
+    "Returns the signed-in account. `role` is the role in the current access token, which can lag the database until refresh.",
   responses: {
     200: {
       description: "Current account",
@@ -397,6 +398,53 @@ openApiRegistry.registerPath({
     },
     401: {
       description: "Missing or expired access token",
+      content: problemResponse.content,
+    },
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "patch",
+  path: "/v1/admin/users/{userId}",
+  tags: ["Admin"],
+  summary: "Assign a role",
+  description:
+    "Replaces the user's role. Requires the roles.assign permission and a stored admin role. Refuses to remove the last admin.",
+  request: {
+    params: z.object({
+      userId: z.string().uuid(),
+    }),
+    body: {
+      content: {
+        "application/json": {
+          schema: assignRoleBodySchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "The role now stored for the user",
+      content: {
+        "application/json": {
+          schema: assignRoleResponseSchema,
+        },
+      },
+    },
+    401: {
+      description: "Missing or expired access token",
+      content: problemResponse.content,
+    },
+    403: {
+      description: "The caller cannot assign roles",
+      content: problemResponse.content,
+    },
+    404: {
+      description: "User not found",
+      content: problemResponse.content,
+    },
+    409: {
+      description: "The change would leave the platform with no admin",
       content: problemResponse.content,
     },
   },
