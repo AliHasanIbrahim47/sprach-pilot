@@ -2,6 +2,7 @@
 
 import type {
   LoginBody,
+  LoginSuccessResponse,
   OAuthAuthenticatedResponse,
   OAuthGoogleLinkBody,
   PasswordForgotBody,
@@ -60,14 +61,14 @@ export async function loginAccount(input: LoginBody): Promise<AuthActionResult> 
   }
 
   try {
-    await apiFetch("/v1/auth/login", {
+    const session = await apiFetch<LoginSuccessResponse>("/v1/auth/login", {
       method: "POST",
       headers: await requestHeaders(),
       body: JSON.stringify(parsed.data),
       forwardCookies: false,
       applyAuthCookies: true,
     });
-    return { ok: true, intent: "login" };
+    return { ok: true, intent: "login", needsOnboarding: session.needsOnboarding };
   } catch (error) {
     return mapAuthError(error);
   }

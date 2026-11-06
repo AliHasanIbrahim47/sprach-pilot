@@ -49,7 +49,7 @@ export function LoginForm({ nextPath = null }: LoginFormProps): React.JSX.Elemen
         setSummary(summaryFor(result, t));
         return;
       }
-      router.replace(nextPath ?? "/dashboard");
+      router.replace(result.needsOnboarding ? "/onboarding" : (nextPath ?? "/dashboard"));
     } finally {
       setIsSubmitting(false);
     }
