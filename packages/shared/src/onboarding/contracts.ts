@@ -16,6 +16,9 @@ export const LEARNING_GOALS = [
 
 export const ONBOARDING_STEPS = ["languages", "level", "quiz", "goals", "city"] as const;
 
+/** Most native languages one profile can store. */
+export const MAX_NATIVE_LANGUAGES = 5;
+
 export const NATIVE_LANGUAGE_CODES = [
   "en",
   "de",
@@ -35,6 +38,9 @@ export const placementLevelSchema = z.enum(PLACEMENT_LEVELS).meta({
   id: "PlacementLevel",
   description: "CEFR level the learner can choose during onboarding (A1–C1).",
 });
+
+/** A level the learner has not chosen yet. Kept separate so PlacementLevel stays non-null. */
+const nullablePlacementLevelSchema = z.enum(PLACEMENT_LEVELS).nullable();
 
 export const learningGoalSchema = z.enum(LEARNING_GOALS).meta({ id: "LearningGoal" });
 
@@ -72,8 +78,8 @@ export const onboardingResponseSchema = z
     status: onboardingStatusSchema,
     step: onboardingStepSchema,
     uiLocale: uiLocaleSchema,
-    nativeLanguages: z.array(nativeLanguageSchema).max(5),
-    cefrLevel: placementLevelSchema.nullable(),
+    nativeLanguages: z.array(nativeLanguageSchema).max(MAX_NATIVE_LANGUAGES),
+    cefrLevel: nullablePlacementLevelSchema,
     goals: z.array(learningGoalSchema).max(6),
     city: cityPointSchema.nullable(),
     needsCity: z.boolean(),
@@ -84,7 +90,7 @@ export const onboardingResponseSchema = z
 export const languagesStepSchema = z.object({
   step: z.literal("languages"),
   uiLocale: uiLocaleSchema,
-  nativeLanguages: z.array(nativeLanguageSchema).min(1).max(5),
+  nativeLanguages: z.array(nativeLanguageSchema).min(1).max(MAX_NATIVE_LANGUAGES),
 });
 
 export const levelStepSchema = z.object({
@@ -95,7 +101,7 @@ export const levelStepSchema = z.object({
 export const quizStepSchema = z.object({
   step: z.literal("quiz"),
   skipped: z.boolean(),
-  cefrLevel: placementLevelSchema.nullable(),
+  cefrLevel: nullablePlacementLevelSchema,
 });
 
 export const goalsStepSchema = z.object({

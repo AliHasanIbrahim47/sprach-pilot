@@ -537,7 +537,8 @@
             "maxItems": 5
           },
           "cefrLevel": {
-            "$ref": "#/components/schemas/PlacementLevel"
+            "type": ["string", "null"],
+            "enum": ["A1", "A2", "B1", "B2", "C1", null]
           },
           "goals": {
             "type": "array",
@@ -583,11 +584,6 @@
       "NativeLanguage": {
         "type": "string",
         "enum": ["en", "de", "ar", "tr", "uk", "ru", "pl", "fa", "es", "fr", "it", "ku"]
-      },
-      "PlacementLevel": {
-        "type": ["string", "null"],
-        "enum": ["A1", "A2", "B1", "B2", "C1", null],
-        "description": "CEFR level the learner can choose during onboarding (A1–C1)."
       },
       "LearningGoal": {
         "type": "string",
@@ -647,6 +643,11 @@
         },
         "required": ["id", "level", "goals", "title"]
       },
+      "PlacementLevel": {
+        "type": "string",
+        "enum": ["A1", "A2", "B1", "B2", "C1"],
+        "description": "CEFR level the learner can choose during onboarding (A1–C1)."
+      },
       "OnboardingStepBody": {
         "oneOf": [
           {
@@ -695,7 +696,8 @@
                 "type": "boolean"
               },
               "cefrLevel": {
-                "$ref": "#/components/schemas/PlacementLevel"
+                "type": ["string", "null"],
+                "enum": ["A1", "A2", "B1", "B2", "C1", null]
               }
             },
             "required": ["step", "skipped", "cefrLevel"]

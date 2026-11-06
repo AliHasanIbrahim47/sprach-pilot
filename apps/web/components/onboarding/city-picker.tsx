@@ -65,10 +65,10 @@ export function CityPicker({ selectedId, onSearch, onSelect }: CityPickerProps):
           void handleChange(event.target.value);
         }}
       />
-      {isSearching ? <p className="text-muted-foreground text-sm">{t("saving")}</p> : null}
+      {isSearching ? <p className="text-muted-foreground text-sm">{t("citySearching")}</p> : null}
       {hasError ? (
         <p role="alert" className="text-destructive text-sm">
-          {t("saveError")}
+          {t("citySearchError")}
         </p>
       ) : null}
       {showEmpty ? <p className="text-muted-foreground text-sm">{t("cityNone")}</p> : null}

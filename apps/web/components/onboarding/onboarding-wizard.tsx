@@ -4,6 +4,7 @@ import {
   type CitySuggestion,
   LEARNING_GOALS,
   type LearningGoal,
+  MAX_NATIVE_LANGUAGES,
   NATIVE_LANGUAGE_CODES,
   type NativeLanguage,
   ONBOARDING_STEPS,
@@ -295,24 +296,32 @@ export function OnboardingWizard({
           </div>
           <fieldset className="flex flex-col gap-2">
             <legend className="text-sm font-medium">{t("nativeLanguages")}</legend>
-            {NATIVE_LANGUAGE_CODES.map((code) => (
-              <label key={code} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  name="nativeLanguages"
-                  value={code}
-                  checked={nativeLanguages.includes(code)}
-                  onChange={() => {
-                    setNativeLanguages((current) =>
-                      current.includes(code)
-                        ? current.filter((item) => item !== code)
-                        : [...current, code],
-                    );
-                  }}
-                />
-                {languageNames.of(code) ?? code}
-              </label>
-            ))}
+            <p className="text-muted-foreground text-sm">
+              {t("nativeLanguagesLimit", { count: MAX_NATIVE_LANGUAGES })}
+            </p>
+            {NATIVE_LANGUAGE_CODES.map((code) => {
+              const isSelected = nativeLanguages.includes(code);
+              const isDisabled = !isSelected && nativeLanguages.length >= MAX_NATIVE_LANGUAGES;
+              return (
+                <label key={code} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    name="nativeLanguages"
+                    value={code}
+                    checked={isSelected}
+                    disabled={isDisabled}
+                    onChange={() => {
+                      setNativeLanguages((current) => {
+                        if (current.includes(code)) return current.filter((item) => item !== code);
+                        if (current.length >= MAX_NATIVE_LANGUAGES) return current;
+                        return [...current, code];
+                      });
+                    }}
+                  />
+                  {languageNames.of(code) ?? code}
+                </label>
+              );
+            })}
           </fieldset>
           <WizardActions
             isBusy={isBusy}

@@ -149,6 +149,7 @@ export {
   isOnboardingPending,
   LEARNING_GOALS,
   learningGoalSchema,
+  MAX_NATIVE_LANGUAGES,
   NATIVE_LANGUAGE_CODES,
   nativeLanguageSchema,
   ONBOARDING_STEPS,
