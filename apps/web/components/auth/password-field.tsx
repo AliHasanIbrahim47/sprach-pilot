@@ -1,7 +1,7 @@
 "use client";
 
 import { Eye, EyeOff } from "lucide-react";
-import { useId, useState } from "react";
+import { type ChangeEvent, useId, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,8 @@ interface PasswordFieldProps {
   showLabel: string;
   hideLabel: string;
   error: string | undefined;
+  value?: string;
+  onChange?: (value: string) => void;
 }
 
 export function PasswordField({
@@ -23,6 +25,8 @@ export function PasswordField({
   showLabel,
   hideLabel,
   error,
+  value,
+  onChange,
 }: PasswordFieldProps): React.JSX.Element {
   const generatedId = useId();
   const errorId = `${generatedId}-error`;
@@ -38,6 +42,12 @@ export function PasswordField({
           type={isVisible ? "text" : "password"}
           autoComplete={autoComplete}
           className="pe-12"
+          {...(value !== undefined && onChange
+            ? {
+                value,
+                onChange: (event: ChangeEvent<HTMLInputElement>) => onChange(event.target.value),
+              }
+            : {})}
           {...(error ? { "aria-invalid": true as const, "aria-describedby": errorId } : {})}
         />
         <Button

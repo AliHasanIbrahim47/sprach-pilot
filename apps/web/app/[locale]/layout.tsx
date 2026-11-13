@@ -9,6 +9,7 @@ import type { ReactNode } from "react";
 
 import { SkipToContent } from "@/components/layout/skip-to-content";
 import { ThemeProvider } from "@/components/layout/theme-provider";
+import { UnsavedChangesProvider } from "@/components/unsaved-changes";
 import { getLocaleDirection, isAppLocale, locales } from "@/i18n/config";
 import { routing } from "@/i18n/routing";
 
@@ -58,8 +59,10 @@ export default async function LocaleLayout({
       <body className="flex min-h-dvh flex-col font-sans antialiased">
         <NextIntlClientProvider messages={messages}>
           <ThemeProvider>
-            <SkipToContent />
-            {children}
+            <UnsavedChangesProvider>
+              <SkipToContent />
+              {children}
+            </UnsavedChangesProvider>
           </ThemeProvider>
         </NextIntlClientProvider>
       </body>
