@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { UI_LOCALES } from "../locale.js";
+import { notificationCategorySchema } from "../settings/contracts.js";
 
 /** BullMQ queue reused by later worker jobs (SP-014). */
 export const EMAIL_QUEUE_NAME = "email";
@@ -24,6 +25,12 @@ export const emailJobSchema = z
     locale: z.enum(UI_LOCALES),
     template: emailTemplateSchema,
     url: z.string().url().optional(),
+    notification: z
+      .object({
+        userId: z.string().min(1).max(64),
+        category: notificationCategorySchema,
+      })
+      .optional(),
   })
   .refine((job) => job.template === "registration-notice" || job.url !== undefined, {
     path: ["url"],

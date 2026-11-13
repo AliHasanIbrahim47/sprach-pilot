@@ -891,6 +891,293 @@
         },
         "required": ["id", "name", "matchedPostalCode", "latitude", "longitude"],
         "description": "Autocomplete hit. Saving a city stores the id and centroid only."
+      },
+      "SettingsResponse": {
+        "type": "object",
+        "properties": {
+          "profile": {
+            "$ref": "#/components/schemas/SettingsProfile"
+          },
+          "notifications": {
+            "$ref": "#/components/schemas/NotificationPreferences"
+          },
+          "quietHours": {
+            "$ref": "#/components/schemas/QuietHours"
+          }
+        },
+        "required": ["profile", "notifications", "quietHours"]
+      },
+      "SettingsProfile": {
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "pendingEmail": {
+            "type": ["string", "null"],
+            "format": "email"
+          },
+          "avatarUrl": {
+            "type": ["string", "null"],
+            "format": "uri"
+          },
+          "uiLocale": {
+            "type": "string",
+            "enum": ["en", "de", "ar", "uk", "tr"]
+          },
+          "nativeLanguages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NativeLanguage"
+            },
+            "maxItems": 5
+          },
+          "cefrLevel": {
+            "type": ["string", "null"],
+            "enum": ["A1", "A2", "B1", "B2", "C1", null]
+          },
+          "goals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LearningGoal"
+            },
+            "maxItems": 6
+          },
+          "city": {
+            "$ref": "#/components/schemas/CityPoint"
+          },
+          "timezone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        },
+        "required": [
+          "displayName",
+          "email",
+          "pendingEmail",
+          "avatarUrl",
+          "uiLocale",
+          "nativeLanguages",
+          "cefrLevel",
+          "goals",
+          "city",
+          "timezone"
+        ]
+      },
+      "NotificationPreferences": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "object",
+            "properties": {
+              "review_reminders": {
+                "type": "boolean"
+              },
+              "event_reminders": {
+                "type": "boolean"
+              },
+              "match_requests": {
+                "type": "boolean"
+              },
+              "product_news": {
+                "type": "boolean"
+              }
+            },
+            "required": ["review_reminders", "event_reminders", "match_requests", "product_news"]
+          },
+          "push": {
+            "type": "object",
+            "properties": {
+              "review_reminders": {
+                "type": "boolean"
+              },
+              "event_reminders": {
+                "type": "boolean"
+              },
+              "match_requests": {
+                "type": "boolean"
+              },
+              "product_news": {
+                "type": "boolean"
+              }
+            },
+            "required": ["review_reminders", "event_reminders", "match_requests", "product_news"]
+          }
+        },
+        "required": ["email", "push"],
+        "description": "Per-channel switches. Product news is off until the learner opts in."
+      },
+      "QuietHours": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "start": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "description": "Local time HH:MM in the profile timezone",
+            "example": "22:00"
+          },
+          "end": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "description": "Local time HH:MM in the profile timezone",
+            "example": "22:00"
+          }
+        },
+        "required": ["enabled", "start", "end"],
+        "description": "Local window in which non-critical notifications are held."
+      },
+      "UpdateProfileBody": {
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "uiLocale": {
+            "type": "string",
+            "enum": ["en", "de", "ar", "uk", "tr"]
+          },
+          "nativeLanguages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NativeLanguage"
+            },
+            "minItems": 1,
+            "maxItems": 5
+          },
+          "cefrLevel": {
+            "type": ["string", "null"],
+            "enum": ["A1", "A2", "B1", "B2", "C1", null]
+          },
+          "goals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LearningGoal"
+            },
+            "minItems": 1,
+            "maxItems": 6
+          },
+          "cityId": {
+            "type": ["string", "null"],
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "timezone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "EmailChangeAccepted": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["pending"]
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": ["status", "message"]
+      },
+      "EmailChangeBody": {
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 320,
+            "format": "email"
+          }
+        },
+        "required": ["currentPassword", "email"]
+      },
+      "EmailChangeConfirmed": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["confirmed"]
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": ["status", "message"]
+      },
+      "EmailChangeConfirmBody": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 256
+          }
+        },
+        "required": ["token"]
+      },
+      "PasswordChangeResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["updated"]
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": ["status", "message"]
+      },
+      "PasswordChangeBody": {
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "password": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 128
+          }
+        },
+        "required": ["currentPassword", "password"]
+      },
+      "AvatarAccepted": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["accepted"]
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": ["status", "message"]
       }
     },
     "parameters": {}
@@ -1942,6 +2229,401 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CitySearchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/settings": {
+      "get": {
+        "tags": ["Settings"],
+        "summary": "Read profile and notification settings",
+        "description": "Product news is off until the learner opts in. Review reminders start on. The login email is unchanged while a new address is pending.",
+        "responses": {
+          "200": {
+            "description": "Current settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/settings/profile": {
+      "patch": {
+        "tags": ["Settings"],
+        "summary": "Update profile fields",
+        "description": "Edits the name, languages, level, goals, city, and timezone captured during onboarding.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProfileBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/settings/notifications": {
+      "put": {
+        "tags": ["Settings"],
+        "summary": "Replace notification preferences",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationPreferences"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/settings/quiet-hours": {
+      "put": {
+        "tags": ["Settings"],
+        "summary": "Set quiet hours",
+        "description": "Non-critical notifications wait during this window in the profile timezone.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuietHours"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/settings/email": {
+      "post": {
+        "tags": ["Settings"],
+        "summary": "Request an email change",
+        "description": "Requires the current password. The new address is not used for login until the confirmation link is opened.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailChangeBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Confirmation email queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailChangeAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/settings/email/confirm": {
+      "post": {
+        "tags": ["Settings"],
+        "summary": "Confirm a new email address",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailChangeConfirmBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login email updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailChangeConfirmed"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/settings/password": {
+      "post": {
+        "tags": ["Settings"],
+        "summary": "Change password",
+        "description": "Requires the current password and revokes every other session.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChangeBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordChangeResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/settings/avatar": {
+      "post": {
+        "tags": ["Settings"],
+        "summary": "Upload an avatar",
+        "description": "JPEG, PNG, WEBP, or GIF up to 5 MB. The worker resizes the image and strips EXIF, including GPS, before publishing it with a long cache lifetime.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "image/jpeg": {
+              "schema": {
+                "type": "string"
+              }
+            },
+            "image/png": {
+              "schema": {
+                "type": "string"
+              }
+            },
+            "image/webp": {
+              "schema": {
+                "type": "string"
+              }
+            },
+            "image/gif": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Image accepted for processing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvatarAccepted"
                 }
               }
             }

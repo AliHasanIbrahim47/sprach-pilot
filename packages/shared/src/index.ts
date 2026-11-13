@@ -113,6 +113,15 @@ export {
   livenessResponseSchema,
   readinessResponseSchema,
 } from "./health.js";
+export type { AvatarContentType, AvatarJob } from "./jobs/avatar.js";
+export {
+  AVATAR_CACHE_CONTROL,
+  AVATAR_CONTENT_TYPES,
+  AVATAR_JOB_NAME,
+  AVATAR_QUEUE_NAME,
+  avatarJobSchema,
+  MAX_AVATAR_BYTES,
+} from "./jobs/avatar.js";
 export type { EmailJob, EmailTemplate } from "./jobs/email.js";
 export {
   EMAIL_JOB_ATTEMPTS,
@@ -173,3 +182,46 @@ export {
   DEFAULT_PAGE_LIMIT,
   MAX_PAGE_LIMIT,
 } from "./pagination/cursor.js";
+export type {
+  EmailChangeBody,
+  EmailChangeConfirmBody,
+  NotificationCategory,
+  NotificationChannel,
+  NotificationPreferences,
+  PasswordChangeBody,
+  QuietHours,
+  SettingsProfile,
+  SettingsResponse,
+  UpdateProfileBody,
+} from "./settings/contracts.js";
+export {
+  avatarAcceptedSchema,
+  clockTimeSchema,
+  DEFAULT_QUIET_HOURS,
+  defaultNotificationPreferences,
+  emailChangeAcceptedSchema,
+  emailChangeBodySchema,
+  emailChangeConfirmBodySchema,
+  emailChangeConfirmedSchema,
+  isValidTimeZone,
+  NOTIFICATION_CATEGORIES,
+  NOTIFICATION_CHANNELS,
+  notificationCategorySchema,
+  notificationChannelSchema,
+  notificationPreferencesSchema,
+  passwordChangeBodySchema,
+  passwordChangeResponseSchema,
+  quietHoursSchema,
+  SETTINGS_COPY,
+  settingsProfileSchema,
+  settingsResponseSchema,
+  updateProfileBodySchema,
+} from "./settings/contracts.js";
+export type { QuietHoursWindow } from "./settings/quiet-hours.js";
+export {
+  clockToMinute,
+  isWithinQuietHours,
+  minuteToClock,
+  notificationIsAllowed,
+} from "./settings/quiet-hours.js";
+export { publicObjectUrl } from "./storage/public-url.js";
