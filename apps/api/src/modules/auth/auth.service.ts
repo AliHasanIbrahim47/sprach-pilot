@@ -3,7 +3,6 @@ import { randomUUID } from "node:crypto";
 import {
   type AccountResponse,
   AUTH_COPY,
-  ConflictError,
   type EmailJob,
   ForbiddenError,
   isOnboardingPending,
@@ -32,6 +31,7 @@ import { GOOGLE_PROVIDER } from "./account.repository.js";
 import type { UserRepository } from "./auth.repository.js";
 import type { EmailTokenRepository } from "./email-token.repository.js";
 import type { EmailTokenCodec } from "./email-token-codec.js";
+import { emailTokenExpired, emailTokenInvalid, emailTokenUsed } from "./email-token-errors.js";
 import { hashIp, loginSubjectKey } from "./ip-hash.js";
 import type { LoginThrottle } from "./login-throttle.js";
 import type { AuthMetrics } from "./metrics.js";
@@ -409,10 +409,14 @@ export function createAuthService(dependencies: AuthServiceDependencies): AuthSe
     },
 
     async verifyEmail(token) {
-      const outcome = await emailTokens.consume(emailCodec.hash(token), clock());
-      if (outcome.status === "used") throw tokenUsed();
-      if (outcome.status === "expired") throw tokenExpired();
-      if (outcome.status === "invalid") throw tokenInvalid();
+      const outcome = await emailTokens.consume({
+        tokenHash: emailCodec.hash(token),
+        now: clock(),
+        purpose: "email_verification",
+      });
+      if (outcome.status === "used") throw emailTokenUsed();
+      if (outcome.status === "expired") throw emailTokenExpired();
+      if (outcome.status === "invalid") throw emailTokenInvalid();
       await users.markEmailVerified(outcome.userId, clock());
       return { status: "verified", message: AUTH_COPY.emailVerified };
     },
@@ -466,10 +470,14 @@ export function createAuthService(dependencies: AuthServiceDependencies): AuthSe
       }
 
       const now = clock();
-      const outcome = await emailTokens.consume(emailCodec.hash(input.token), now);
-      if (outcome.status === "used") throw tokenUsed();
-      if (outcome.status === "expired") throw tokenExpired();
-      if (outcome.status === "invalid") throw tokenInvalid();
+      const outcome = await emailTokens.consume({
+        tokenHash: emailCodec.hash(input.token),
+        now,
+        purpose: "password_reset",
+      });
+      if (outcome.status === "used") throw emailTokenUsed();
+      if (outcome.status === "expired") throw emailTokenExpired();
+      if (outcome.status === "invalid") throw emailTokenInvalid();
 
       await users.updatePassword(outcome.userId, await hasher.hash(input.password));
       await sessions.revokeAllForUser({
@@ -560,26 +568,6 @@ function buildAppLink(origin: string, locale: UiLocale, path: string, token: str
   const url = new URL(`${origin.replace(/\/$/, "")}/${locale}${path}`);
   url.searchParams.set("token", token);
   return url.toString();
-}
-
-function tokenUsed(): ConflictError {
-  return new ConflictError(AUTH_COPY.linkAlreadyUsed, {
-    errors: [{ field: "token", code: "token_used", message: AUTH_COPY.linkAlreadyUsed }],
-  });
-}
-
-function tokenExpired(): ValidationError {
-  return new ValidationError({
-    detail: AUTH_COPY.linkExpired,
-    errors: [{ field: "token", code: "token_expired", message: AUTH_COPY.linkExpired }],
-  });
-}
-
-function tokenInvalid(): ValidationError {
-  return new ValidationError({
-    detail: AUTH_COPY.linkInvalid,
-    errors: [{ field: "token", code: "token_invalid", message: AUTH_COPY.linkInvalid }],
-  });
 }
 
 function deviceUserAgent(value: string | undefined): string | null {

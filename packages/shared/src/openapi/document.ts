@@ -32,6 +32,19 @@ import {
   quizResultSchema,
   quizSubmissionSchema,
 } from "../onboarding/contracts.js";
+import {
+  avatarAcceptedSchema,
+  emailChangeAcceptedSchema,
+  emailChangeBodySchema,
+  emailChangeConfirmBodySchema,
+  emailChangeConfirmedSchema,
+  notificationPreferencesSchema,
+  passwordChangeBodySchema,
+  passwordChangeResponseSchema,
+  quietHoursSchema,
+  settingsResponseSchema,
+  updateProfileBodySchema,
+} from "../settings/contracts.js";
 
 /**
  * OpenAPI 3.1 document built from Zod `.meta({ id })` annotations (Zod 4).
@@ -717,6 +730,183 @@ openApiRegistry.registerPath({
     200: {
       description: "Matching cities",
       content: { "application/json": { schema: citySearchResponseSchema } },
+    },
+    400: problemResponse,
+    401: problemResponse,
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "get",
+  path: "/v1/settings",
+  tags: ["Settings"],
+  summary: "Read profile and notification settings",
+  description:
+    "Product news is off until the learner opts in. Review reminders start on. The login email is unchanged while a new address is pending.",
+  responses: {
+    200: {
+      description: "Current settings",
+      content: { "application/json": { schema: settingsResponseSchema } },
+    },
+    401: problemResponse,
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "patch",
+  path: "/v1/settings/profile",
+  tags: ["Settings"],
+  summary: "Update profile fields",
+  description:
+    "Edits the name, languages, level, goals, city, and timezone captured during onboarding.",
+  request: {
+    body: {
+      content: { "application/json": { schema: updateProfileBodySchema } },
+      required: true,
+    },
+  },
+  responses: {
+    200: {
+      description: "Updated settings",
+      content: { "application/json": { schema: settingsResponseSchema } },
+    },
+    400: problemResponse,
+    401: problemResponse,
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "put",
+  path: "/v1/settings/notifications",
+  tags: ["Settings"],
+  summary: "Replace notification preferences",
+  request: {
+    body: {
+      content: { "application/json": { schema: notificationPreferencesSchema } },
+      required: true,
+    },
+  },
+  responses: {
+    200: {
+      description: "Updated settings",
+      content: { "application/json": { schema: settingsResponseSchema } },
+    },
+    400: problemResponse,
+    401: problemResponse,
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "put",
+  path: "/v1/settings/quiet-hours",
+  tags: ["Settings"],
+  summary: "Set quiet hours",
+  description: "Non-critical notifications wait during this window in the profile timezone.",
+  request: {
+    body: {
+      content: { "application/json": { schema: quietHoursSchema } },
+      required: true,
+    },
+  },
+  responses: {
+    200: {
+      description: "Updated settings",
+      content: { "application/json": { schema: settingsResponseSchema } },
+    },
+    400: problemResponse,
+    401: problemResponse,
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "post",
+  path: "/v1/settings/email",
+  tags: ["Settings"],
+  summary: "Request an email change",
+  description:
+    "Requires the current password. The new address is not used for login until the confirmation link is opened.",
+  request: {
+    body: {
+      content: { "application/json": { schema: emailChangeBodySchema } },
+      required: true,
+    },
+  },
+  responses: {
+    202: {
+      description: "Confirmation email queued",
+      content: { "application/json": { schema: emailChangeAcceptedSchema } },
+    },
+    400: problemResponse,
+    401: problemResponse,
+    409: problemResponse,
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "post",
+  path: "/v1/settings/email/confirm",
+  tags: ["Settings"],
+  summary: "Confirm a new email address",
+  request: {
+    body: {
+      content: { "application/json": { schema: emailChangeConfirmBodySchema } },
+      required: true,
+    },
+  },
+  responses: {
+    200: {
+      description: "Login email updated",
+      content: { "application/json": { schema: emailChangeConfirmedSchema } },
+    },
+    400: problemResponse,
+    409: problemResponse,
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "post",
+  path: "/v1/settings/password",
+  tags: ["Settings"],
+  summary: "Change password",
+  description: "Requires the current password and revokes every other session.",
+  request: {
+    body: {
+      content: { "application/json": { schema: passwordChangeBodySchema } },
+      required: true,
+    },
+  },
+  responses: {
+    200: {
+      description: "Password updated",
+      content: { "application/json": { schema: passwordChangeResponseSchema } },
+    },
+    400: problemResponse,
+    401: problemResponse,
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "post",
+  path: "/v1/settings/avatar",
+  tags: ["Settings"],
+  summary: "Upload an avatar",
+  description:
+    "JPEG, PNG, WEBP, or GIF up to 5 MB. The worker resizes the image and strips EXIF, including GPS, before publishing it with a long cache lifetime.",
+  request: {
+    body: {
+      content: {
+        "image/jpeg": { schema: z.string() },
+        "image/png": { schema: z.string() },
+        "image/webp": { schema: z.string() },
+        "image/gif": { schema: z.string() },
+      },
+      required: true,
+    },
+  },
+  responses: {
+    202: {
+      description: "Image accepted for processing",
+      content: { "application/json": { schema: avatarAcceptedSchema } },
     },
     400: problemResponse,
     401: problemResponse,

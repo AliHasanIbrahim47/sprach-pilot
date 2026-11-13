@@ -1,6 +1,6 @@
 import { prisma, type PrismaClient } from "@sprachpilot/db";
 
-export type RevokeReason = "logout" | "revoked" | "reuse" | "password_reset";
+export type RevokeReason = "logout" | "revoked" | "reuse" | "password_reset" | "password_change";
 
 export interface SessionRecord {
   id: string;
@@ -54,6 +54,13 @@ export interface SessionRepository {
   familyBelongsToUser(familyId: string, userId: string): Promise<boolean>;
   revokeFamily(input: RevokeFamilyInput): Promise<void>;
   revokeAllForUser(input: { userId: string; reason: RevokeReason; now: Date }): Promise<void>;
+  /** Revokes every live session except the device that just changed the password. */
+  revokeOtherSessions(input: {
+    userId: string;
+    keepFamilyId: string;
+    reason: RevokeReason;
+    now: Date;
+  }): Promise<void>;
   listActive(userId: string, now: Date): Promise<SessionRecord[]>;
 }
 
@@ -77,7 +84,8 @@ function readReason(value: string | null): RevokeReason | null {
     value === "logout" ||
     value === "revoked" ||
     value === "reuse" ||
-    value === "password_reset"
+    value === "password_reset" ||
+    value === "password_change"
   ) {
     return value;
   }
@@ -194,6 +202,17 @@ export function createSessionRepository(client: PrismaClient = prisma): SessionR
       });
     },
 
+    async revokeOtherSessions(input) {
+      await client.session.updateMany({
+        where: {
+          userId: input.userId,
+          familyId: { not: input.keepFamilyId },
+          revokedAt: null,
+        },
+        data: { revokedAt: input.now, revokedReason: input.reason },
+      });
+    },
+
     async listActive(userId, now) {
       const rows = await client.session.findMany({
         where: {
@@ -304,6 +323,15 @@ export function createMemorySessionRepository(): MemorySessionRepository {
     async revokeAllForUser(input) {
       for (const row of rows.values()) {
         if (row.userId !== input.userId || row.revokedAt !== null) continue;
+        row.revokedAt = input.now;
+        row.revokedReason = input.reason;
+      }
+    },
+
+    async revokeOtherSessions(input) {
+      for (const row of rows.values()) {
+        if (row.userId !== input.userId || row.familyId === input.keepFamilyId) continue;
+        if (row.revokedAt !== null) continue;
         row.revokedAt = input.now;
         row.revokedReason = input.reason;
       }

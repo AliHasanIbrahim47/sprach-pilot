@@ -73,6 +73,27 @@ import {
 } from "./modules/onboarding/onboarding.repository.js";
 import { createOnboardingRouter } from "./modules/onboarding/onboarding.routes.js";
 import { createOnboardingService } from "./modules/onboarding/onboarding.service.js";
+import {
+  type AvatarQueue,
+  createBullAvatarQueue,
+  createMemoryAvatarQueue,
+} from "./modules/settings/avatar-queue.js";
+import {
+  createMemoryObjectStorage,
+  createS3ObjectStorage,
+  type ObjectStorage,
+} from "./modules/settings/object-storage.js";
+import {
+  createSettingsController,
+  type SettingsController,
+} from "./modules/settings/settings.controller.js";
+import { createSettingsMetrics } from "./modules/settings/settings.metrics.js";
+import {
+  createSettingsRepository,
+  type SettingsRepository,
+} from "./modules/settings/settings.repository.js";
+import { createSettingsRouter } from "./modules/settings/settings.routes.js";
+import { createSettingsService } from "./modules/settings/settings.service.js";
 
 export interface AppContainer {
   config: ApiConfig;
@@ -83,6 +104,8 @@ export interface AppContainer {
   adminRouter: Router;
   onboardingRouter: Router;
   onboardingController: OnboardingController;
+  settingsRouter: Router;
+  settingsController: SettingsController;
   requireAuth: RequestHandler;
   requireVerifiedEmail: RequestHandler;
   jwksRouter: Router;
@@ -114,10 +137,18 @@ export interface OnboardingOverrides {
   clock?: () => Date;
 }
 
+export interface SettingsOverrides {
+  store?: SettingsRepository;
+  storage?: ObjectStorage;
+  avatars?: AvatarQueue;
+  clock?: () => Date;
+}
+
 export interface ContainerOverrides {
   dependencyChecks?: DependencyHealthPort[];
   auth?: AuthOverrides;
   onboarding?: OnboardingOverrides;
+  settings?: SettingsOverrides;
 }
 
 /**
@@ -154,8 +185,19 @@ export function createContainer(
   const hasher = overrides.auth?.hasher ?? createPasswordHasher();
   const clock = overrides.auth?.clock ?? (() => new Date());
   const emailTransport = resolveEmailQueue(overrides.auth?.emailQueue, config.redisUrl);
+  const emailTokens = overrides.auth?.emailTokens ?? createEmailTokenRepository();
+  const emailCodec = createEmailTokenCodec(config.jwt.refreshPepper);
   const requireAuth = createRequireAuth(tokens);
   const authLogger = createConsoleLogger("auth");
+  const useMemoryPorts = overrides.auth?.emailQueue !== undefined;
+  const avatarTransport = resolveAvatarQueue(
+    overrides.settings?.avatars,
+    useMemoryPorts,
+    config.redisUrl,
+  );
+  const storage =
+    overrides.settings?.storage ??
+    (useMemoryPorts ? createMemoryObjectStorage() : createS3ObjectStorage(config));
 
   const authService: AuthService = createAuthService({
     users,
@@ -163,8 +205,8 @@ export function createContainer(
     sessions,
     tokens,
     throttle: redisPorts.throttle,
-    emailTokens: overrides.auth?.emailTokens ?? createEmailTokenRepository(),
-    emailCodec: createEmailTokenCodec(config.jwt.refreshPepper),
+    emailTokens,
+    emailCodec,
     emailSends: redisPorts.emailSends,
     emailQueue: emailTransport.emailQueue,
     webPublicUrl: config.webPublicUrl,
@@ -222,9 +264,29 @@ export function createContainer(
     }),
   );
   const onboardingRouter = createOnboardingRouter(onboardingController, requireAuth);
+  const settingsMetrics = createSettingsMetrics();
+  const settingsController = createSettingsController(
+    createSettingsService({
+      users,
+      sessions,
+      store: overrides.settings?.store ?? createSettingsRepository(),
+      hasher,
+      emailTokens,
+      emailCodec,
+      emailSends: redisPorts.emailSends,
+      emailQueue: emailTransport.emailQueue,
+      storage,
+      avatars: avatarTransport.queue,
+      webPublicUrl: config.webPublicUrl,
+      clock: overrides.settings?.clock ?? clock,
+      logger: createConsoleLogger("settings"),
+    }),
+    settingsMetrics,
+  );
+  const settingsRouter = createSettingsRouter(settingsController, requireAuth);
   const metricsRouter = createMetricsRouter({
     renderPrometheus() {
-      return `${metrics.renderPrometheus()}${onboardingMetrics.renderPrometheus()}`;
+      return `${metrics.renderPrometheus()}${onboardingMetrics.renderPrometheus()}${settingsMetrics.renderPrometheus()}`;
     },
   });
 
@@ -244,6 +306,8 @@ export function createContainer(
     adminRouter,
     onboardingRouter,
     onboardingController,
+    settingsRouter,
+    settingsController,
     requireAuth,
     requireVerifiedEmail: createRequireVerifiedEmail(users),
     jwksRouter,
@@ -252,6 +316,8 @@ export function createContainer(
     async close() {
       await emailTransport.emailQueue.close();
       emailTransport.connection?.disconnect();
+      await avatarTransport.queue.close();
+      avatarTransport.connection?.disconnect();
       redisPorts.redis?.disconnect();
       await prisma.$disconnect();
     },
@@ -265,6 +331,17 @@ function resolveEmailQueue(
   if (override) return { emailQueue: override, connection: undefined };
   const connection = createQueueConnection(redisUrl);
   return { emailQueue: createBullEmailQueue(connection), connection };
+}
+
+function resolveAvatarQueue(
+  override: AvatarQueue | undefined,
+  memory: boolean,
+  redisUrl: string,
+): { queue: AvatarQueue; connection: Redis | undefined } {
+  if (override) return { queue: override, connection: undefined };
+  if (memory) return { queue: createMemoryAvatarQueue(), connection: undefined };
+  const connection = createQueueConnection(redisUrl);
+  return { queue: createBullAvatarQueue(connection), connection };
 }
 
 function createQueueConnection(redisUrl: string): Redis {

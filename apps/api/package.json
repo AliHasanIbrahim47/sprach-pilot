@@ -16,6 +16,7 @@
   "dependencies": {
     "@scalar/express-api-reference": "^0.8.10",
     "@sprachpilot/db": "workspace:*",
+    "@sprachpilot/s3": "workspace:*",
     "@sprachpilot/shared": "workspace:*",
     "bullmq": "^6.3.11",
     "compression": "^1.8.1",

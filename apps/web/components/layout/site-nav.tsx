@@ -32,7 +32,12 @@ export function SiteNav({ signedIn, signOut }: SiteNavProps): React.JSX.Element 
           {tNav("home")}
         </Link>
         {signedIn ? (
-          signOut
+          <>
+            <Link href="/settings" className={itemClassName} onClick={closeMenu}>
+              {tNav("settings")}
+            </Link>
+            {signOut}
+          </>
         ) : (
           <Link href="/login" className={itemClassName} onClick={closeMenu}>
             {tNav("signIn")}

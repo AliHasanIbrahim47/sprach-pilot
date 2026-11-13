@@ -1,0 +1,30 @@
+{
+  "name": "@sprachpilot/s3",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "type-check": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "test": "echo \"no tests yet\"",
+    "clean": "rm -rf dist .turbo *.tsbuildinfo"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1162.0"
+  },
+  "devDependencies": {
+    "@sprachpilot/config": "workspace:*",
+    "@types/node": "^24.5.2",
+    "eslint": "^9.36.0",
+    "typescript": "^5.9.3"
+  }
+}

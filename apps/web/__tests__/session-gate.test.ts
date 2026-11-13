@@ -13,6 +13,9 @@ describe("session gate", () => {
     expect(isProtectedAppPath("/en/app/decks")).toBe(true);
     expect(isProtectedAppPath("/de/dashboard")).toBe(true);
     expect(isProtectedAppPath("/en/onboarding")).toBe(true);
+    expect(isProtectedAppPath("/en/settings")).toBe(true);
+    expect(isProtectedAppPath("/de/settings/privacy")).toBe(true);
+    expect(isProtectedAppPath("/en/confirm-email")).toBe(false);
     expect(isProtectedAppPath("/en/login")).toBe(false);
     expect(isProtectedAppPath("/en")).toBe(false);
   });
