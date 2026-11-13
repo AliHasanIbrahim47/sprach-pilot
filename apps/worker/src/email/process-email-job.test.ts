@@ -28,6 +28,34 @@ describe("email processor", () => {
     expect(sent[0]?.html).toContain("token=abc");
   });
 
+  it("drops a review reminder that falls inside quiet hours", async () => {
+    const sent: OutboundMail[] = [];
+    const processJob = createEmailProcessor(
+      {
+        async send(message) {
+          sent.push(message);
+        },
+      },
+      {
+        async allowsNotification() {
+          return false;
+        },
+      },
+    );
+
+    await processJob({
+      data: {
+        to: "learner@example.com",
+        locale: "en",
+        template: "verify-email",
+        url: "http://localhost:3000/en/settings/confirm-email?token=abc",
+        notification: { userId: "user-1", category: "review_reminders" },
+      },
+    });
+
+    expect(sent).toHaveLength(0);
+  });
+
   it("does not retry an invalid payload", async () => {
     const processJob = createEmailProcessor({
       async send() {
