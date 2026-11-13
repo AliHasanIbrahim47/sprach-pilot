@@ -37,6 +37,16 @@ export interface UserRepository {
   findById(id: string): Promise<AuthUserRecord | null>;
   createWithConsent(input: CreateUserInput): Promise<CreateUserResult>;
   updatePassword(id: string, passwordHash: string): Promise<void>;
+  updateDisplayName(id: string, displayName: string): Promise<void>;
+  /**
+   * Replaces the login email and marks it verified.
+   * Returns `taken` when another account already uses that address.
+   */
+  changeEmail(
+    id: string,
+    email: string,
+    verifiedAt: Date,
+  ): Promise<"updated" | "taken" | "missing">;
   markEmailVerified(id: string, at: Date): Promise<void>;
 }
 
@@ -156,6 +166,28 @@ export function createUserRepository(client: PrismaClient = prisma): UserReposit
       await client.user.update({ where: { id }, data: { passwordHash } });
     },
 
+    async updateDisplayName(id, displayName) {
+      await client.user.update({ where: { id }, data: { displayName } });
+    },
+
+    async changeEmail(id, email, verifiedAt) {
+      try {
+        await client.user.update({
+          where: { id },
+          data: { email, emailVerifiedAt: verifiedAt },
+        });
+        return "updated";
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+          return "taken";
+        }
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+          return "missing";
+        }
+        throw error;
+      }
+    },
+
     async markEmailVerified(id, at) {
       await client.user.updateMany({
         where: { id, emailVerifiedAt: null },
@@ -209,6 +241,24 @@ export function createMemoryUserRepository(): MemoryUserRepository {
       const user = [...users.values()].find((record) => record.id === id);
       if (!user) throw new Error("user not found");
       user.passwordHash = passwordHash;
+    },
+
+    async updateDisplayName(id, displayName) {
+      const user = [...users.values()].find((record) => record.id === id);
+      if (!user) throw new Error("user not found");
+      user.displayName = displayName;
+    },
+
+    async changeEmail(id, email, verifiedAt) {
+      const user = [...users.values()].find((record) => record.id === id);
+      if (!user) return "missing";
+      const existing = users.get(email);
+      if (existing && existing.id !== id) return "taken";
+      users.delete(user.email);
+      user.email = email;
+      user.emailVerifiedAt = verifiedAt;
+      users.set(email, user);
+      return "updated";
     },
 
     async markEmailVerified(id, at) {

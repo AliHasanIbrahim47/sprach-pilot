@@ -5,7 +5,8 @@ export const EMAIL_SEND_LIMIT = 3;
 
 export const EMAIL_SEND_WINDOW_SECONDS = 60 * 60;
 
-export type EmailSendPurpose = "verification" | "password_reset" | "registration_notice";
+export type EmailSendPurpose =
+  "verification" | "password_reset" | "registration_notice" | "email_change";
 
 export interface EmailSendLimiter {
   /**
