@@ -67,6 +67,15 @@ model User {
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
 
+  /// Set when the learner asks for erasure. Login during the grace window clears it.
+  deletionRequestedAt DateTime? @map("deletion_requested_at") @db.Timestamptz(3)
+
+  /// Hard-delete becomes eligible at this instant. Null means no deletion is scheduled.
+  purgeAfter DateTime? @map("purge_after") @db.Timestamptz(3)
+
+  /// True after recording-storage consent is withdrawn. Later modules must not persist audio.
+  recordingStorageTransient Boolean @default(false) @map("recording_storage_transient")
+
   profile                   Profile?
   accounts                  Account[]
   auditLogs                 AuditLog[]      @relation("AuditActor")
@@ -76,10 +85,12 @@ model User {
   pendingEmail              PendingEmail?
   notificationPreferences   NotificationPreference[]
   quietHours                QuietHours?
+  dataExports               DataExport[]
 
   // Filter: active users by role; soft-delete exclusion uses deleted_at IS NULL
   @@index([role], map: "users_role_idx")
   @@index([deletedAt], map: "users_deleted_at_idx")
+  @@index([purgeAfter], map: "users_purge_after_idx")
   @@map("users")
 }
 
@@ -163,9 +174,12 @@ model ConsentRecord {
   userId String @map("user_id") @db.Uuid
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  /// Policy identifier, e.g. `terms` or `privacy`.
+  /// Policy identifier, e.g. `terms`, `privacy`, `recording_storage`.
   policy  String
   version String
+
+  /// granted | withdrawn. Each change is a new row (SP-019).
+  decision String @default("granted")
 
   acceptedAt DateTime @map("accepted_at") @db.Timestamptz(3)
 
@@ -320,4 +334,24 @@ model QuietHours {
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   @@map("quiet_hours")
+}
+
+/// One archive request. The ZIP lives in object storage until `expires_at`.
+model DataExport {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  userId String @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// queued | ready | failed
+  status String
+
+  objectKey String? @map("object_key")
+
+  expiresAt DateTime? @map("expires_at") @db.Timestamptz(3)
+  readyAt   DateTime? @map("ready_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([userId], map: "data_exports_user_id_idx")
+  @@map("data_exports")
 }

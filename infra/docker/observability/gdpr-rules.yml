@@ -1,0 +1,10 @@
+groups:
+  - name: gdpr
+    rules:
+      - alert: GdprDeletionOverdue
+        expr: gdpr_deletion_overdue > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: A GDPR account deletion is more than 24 hours past its purge time

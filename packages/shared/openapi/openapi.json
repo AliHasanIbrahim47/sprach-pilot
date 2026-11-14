@@ -1178,6 +1178,104 @@
           }
         },
         "required": ["status", "message"]
+      },
+      "PrivacyOverview": {
+        "type": "object",
+        "properties": {
+          "consents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PrivacyConsent"
+            }
+          },
+          "deletion": {
+            "type": ["object", "null"],
+            "properties": {
+              "purgeAfter": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": ["purgeAfter"]
+          },
+          "export": {
+            "type": ["object", "null"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": ["queued", "ready", "failed"]
+              },
+              "downloadUrl": {
+                "type": ["string", "null"],
+                "format": "uri"
+              }
+            },
+            "required": ["id", "status", "downloadUrl"]
+          }
+        },
+        "required": ["consents", "deletion", "export"]
+      },
+      "PrivacyConsent": {
+        "type": "object",
+        "properties": {
+          "policy": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "decision": {
+            "$ref": "#/components/schemas/ConsentDecision"
+          },
+          "recordedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": ["policy", "version", "decision", "recordedAt"]
+      },
+      "ConsentDecision": {
+        "type": "string",
+        "enum": ["granted", "withdrawn"]
+      },
+      "ExportAccepted": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["queued"]
+          }
+        },
+        "required": ["id", "status"]
+      },
+      "DeletionAccepted": {
+        "type": "object",
+        "properties": {
+          "purgeAfter": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": ["purgeAfter"]
+      },
+      "UpdateConsentBody": {
+        "type": "object",
+        "properties": {
+          "policy": {
+            "type": "string",
+            "enum": ["recording_storage", "product_emails", "analytics"]
+          },
+          "granted": {
+            "type": "boolean"
+          }
+        },
+        "required": ["policy", "granted"]
       }
     },
     "parameters": {}
@@ -2639,6 +2737,191 @@
             }
           },
           "401": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/privacy": {
+      "get": {
+        "tags": ["Privacy"],
+        "summary": "Privacy overview",
+        "description": "Current optional consents, a scheduled deletion, and the latest data export.",
+        "responses": {
+          "200": {
+            "description": "Privacy state for the signed-in learner",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrivacyOverview"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/privacy/export": {
+      "post": {
+        "tags": ["Privacy"],
+        "summary": "Request a data export",
+        "description": "Enqueues an archive. The learner receives an email with a signed link that expires after 7 days.",
+        "responses": {
+          "202": {
+            "description": "Export queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportAccepted"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/privacy/deletion": {
+      "post": {
+        "tags": ["Privacy"],
+        "summary": "Request account deletion",
+        "description": "Signs the learner out and schedules hard deletion in 7 days. Signing in before then cancels it.",
+        "responses": {
+          "202": {
+            "description": "Deletion scheduled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionAccepted"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/privacy/consents": {
+      "put": {
+        "tags": ["Privacy"],
+        "summary": "Grant or withdraw an optional consent",
+        "description": "Records the change with a timestamp and the current policy version.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateConsentBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated consent list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrivacyOverview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/privacy/exports/{exportId}/download": {
+      "get": {
+        "tags": ["Privacy"],
+        "summary": "Download a data export",
+        "description": "Requires the signed token from the export email. The token expires after 7 days.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "token",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ZIP archive",
+            "content": {
+              "application/zip": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem Details",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
             "description": "Problem Details",
             "content": {
               "application/problem+json": {

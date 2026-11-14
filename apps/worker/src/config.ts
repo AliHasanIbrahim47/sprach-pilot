@@ -60,6 +60,10 @@ const workerEnvSchema = z.object({
   LANGUAGETOOL_URL: z.string().url().default("http://localhost:8010"),
 
   FEATURE_REGISTRATION_ENABLED: requiredBooleanSchema(true),
+
+  WEB_PUBLIC_URL: z.string().url().default("http://localhost:3000"),
+  IP_HASH_SECRET: z.string().min(16, "must be at least 16 characters"),
+  METRICS_PORT: z.coerce.number().int().positive().default(3003),
 });
 
 export type WorkerConfig = Readonly<{
@@ -92,9 +96,19 @@ export type WorkerConfig = Readonly<{
   features: Readonly<{
     registrationEnabled: boolean;
   }>;
+  webPublicUrl: string;
+  ipHashSecret: string;
+  metricsPort: number;
 }>;
 
-const SECRET_KEYS = new Set(["databaseUrl", "redisUrl", "accessKeyId", "secretAccessKey", "pass"]);
+const SECRET_KEYS = new Set([
+  "databaseUrl",
+  "redisUrl",
+  "accessKeyId",
+  "secretAccessKey",
+  "pass",
+  "ipHashSecret",
+]);
 
 function deepFreeze<T>(value: T): T {
   if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
@@ -145,6 +159,9 @@ function toWorkerConfig(env: z.infer<typeof workerEnvSchema>): WorkerConfig {
     features: {
       registrationEnabled: env.FEATURE_REGISTRATION_ENABLED,
     },
+    webPublicUrl: env.WEB_PUBLIC_URL,
+    ipHashSecret: env.IP_HASH_SECRET,
+    metricsPort: env.METRICS_PORT,
   });
 }
 

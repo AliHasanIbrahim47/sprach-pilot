@@ -17,6 +17,7 @@ export const emailTemplateSchema = z.enum([
   "verify-email",
   "reset-password",
   "registration-notice",
+  "export-ready",
 ]);
 
 export const emailJobSchema = z
