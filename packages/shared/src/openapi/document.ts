@@ -33,6 +33,12 @@ import {
   quizSubmissionSchema,
 } from "../onboarding/contracts.js";
 import {
+  deletionAcceptedSchema,
+  exportAcceptedSchema,
+  privacyOverviewSchema,
+  updateConsentBodySchema,
+} from "../privacy/contracts.js";
+import {
   avatarAcceptedSchema,
   emailChangeAcceptedSchema,
   emailChangeBodySchema,
@@ -910,6 +916,94 @@ openApiRegistry.registerPath({
     },
     400: problemResponse,
     401: problemResponse,
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "get",
+  path: "/v1/privacy",
+  tags: ["Privacy"],
+  summary: "Privacy overview",
+  description: "Current optional consents, a scheduled deletion, and the latest data export.",
+  responses: {
+    200: {
+      description: "Privacy state for the signed-in learner",
+      content: { "application/json": { schema: privacyOverviewSchema } },
+    },
+    401: problemResponse,
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "post",
+  path: "/v1/privacy/export",
+  tags: ["Privacy"],
+  summary: "Request a data export",
+  description:
+    "Enqueues an archive. The learner receives an email with a signed link that expires after 7 days.",
+  responses: {
+    202: {
+      description: "Export queued",
+      content: { "application/json": { schema: exportAcceptedSchema } },
+    },
+    401: problemResponse,
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "post",
+  path: "/v1/privacy/deletion",
+  tags: ["Privacy"],
+  summary: "Request account deletion",
+  description:
+    "Signs the learner out and schedules hard deletion in 7 days. Signing in before then cancels it.",
+  responses: {
+    202: {
+      description: "Deletion scheduled",
+      content: { "application/json": { schema: deletionAcceptedSchema } },
+    },
+    401: problemResponse,
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "put",
+  path: "/v1/privacy/consents",
+  tags: ["Privacy"],
+  summary: "Grant or withdraw an optional consent",
+  description: "Records the change with a timestamp and the current policy version.",
+  request: {
+    body: {
+      content: { "application/json": { schema: updateConsentBodySchema } },
+      required: true,
+    },
+  },
+  responses: {
+    200: {
+      description: "Updated consent list",
+      content: { "application/json": { schema: privacyOverviewSchema } },
+    },
+    400: problemResponse,
+    401: problemResponse,
+  },
+});
+
+openApiRegistry.registerPath({
+  method: "get",
+  path: "/v1/privacy/exports/{exportId}/download",
+  tags: ["Privacy"],
+  summary: "Download a data export",
+  description: "Requires the signed token from the export email. The token expires after 7 days.",
+  request: {
+    query: z.object({ token: z.string() }),
+  },
+  responses: {
+    200: {
+      description: "ZIP archive",
+      content: { "application/zip": { schema: z.string() } },
+    },
+    401: problemResponse,
+    404: problemResponse,
   },
 });
 

@@ -20,6 +20,11 @@ export interface EmailCopy {
   noticeBody: string;
   noticeSignIn: string;
   noticeIgnore: string;
+  exportSubject: string;
+  exportPreview: string;
+  exportHeading: string;
+  exportBody: string;
+  exportAction: string;
 }
 
 const COPIES = new Map<UiLocale, EmailCopy>([
@@ -47,6 +52,11 @@ const COPIES = new Map<UiLocale, EmailCopy>([
       noticeBody: "Someone tried to create a SprachPilot account using this email address.",
       noticeSignIn: "If that was you, sign in with your existing password.",
       noticeIgnore: "If it was not you, you can ignore this message. No new account was created.",
+      exportSubject: "Your SprachPilot data export is ready",
+      exportPreview: "Download the copy of your SprachPilot data.",
+      exportHeading: "Your data export is ready",
+      exportBody: "This link expires in 7 days and works only for your account.",
+      exportAction: "Download my data",
     },
   ],
   [
@@ -76,6 +86,11 @@ const COPIES = new Map<UiLocale, EmailCopy>([
       noticeSignIn: "Wenn du das warst, melde dich mit deinem bestehenden Passwort an.",
       noticeIgnore:
         "Wenn du das nicht warst, kannst du diese Nachricht ignorieren. Es wurde kein neues Konto erstellt.",
+      exportSubject: "Dein SprachPilot-Datenexport ist fertig",
+      exportPreview: "Lade die Kopie deiner SprachPilot-Daten herunter.",
+      exportHeading: "Dein Datenexport ist fertig",
+      exportBody: "Dieser Link gilt 7 Tage und nur für dein Konto.",
+      exportAction: "Daten herunterladen",
     },
   ],
   [
@@ -101,6 +116,11 @@ const COPIES = new Map<UiLocale, EmailCopy>([
       noticeBody: "حاول شخص إنشاء حساب SprachPilot باستخدام هذا البريد.",
       noticeSignIn: "إذا كنت أنت، فسجّل الدخول بكلمة المرور الحالية.",
       noticeIgnore: "إذا لم تكن أنت، يمكنك تجاهل هذه الرسالة. لم يُنشأ حساب جديد.",
+      exportSubject: "تصدير بيانات SprachPilot جاهز",
+      exportPreview: "نزّل نسخة من بياناتك في SprachPilot.",
+      exportHeading: "تصدير بياناتك جاهز",
+      exportBody: "ينتهي هذا الرابط خلال 7 أيام ويعمل لحسابك فقط.",
+      exportAction: "تنزيل بياناتي",
     },
   ],
   [
@@ -127,6 +147,11 @@ const COPIES = new Map<UiLocale, EmailCopy>([
       noticeBody: "Хтось спробував створити обліковий запис SprachPilot з цією електронною поштою.",
       noticeSignIn: "Якщо це були ви, увійдіть із наявним паролем.",
       noticeIgnore: "Якщо це були не ви, проігноруйте лист. Новий обліковий запис не створено.",
+      exportSubject: "Експорт даних SprachPilot готовий",
+      exportPreview: "Завантажте копію своїх даних SprachPilot.",
+      exportHeading: "Ваш експорт даних готовий",
+      exportBody: "Посилання діє 7 днів і лише для вашого облікового запису.",
+      exportAction: "Завантажити мої дані",
     },
   ],
   [
@@ -153,6 +178,11 @@ const COPIES = new Map<UiLocale, EmailCopy>([
       noticeBody: "Birisi bu e-postayla bir SprachPilot hesabı oluşturmayı denedi.",
       noticeSignIn: "Bu sendiysen mevcut şifrenle giriş yap.",
       noticeIgnore: "Sen değilsen bu iletiyi yok sayabilirsin. Yeni bir hesap oluşturulmadı.",
+      exportSubject: "SprachPilot veri dışa aktarman hazır",
+      exportPreview: "SprachPilot verilerinin kopyasını indir.",
+      exportHeading: "Veri dışa aktarman hazır",
+      exportBody: "Bu bağlantı 7 gün geçerlidir ve yalnızca senin hesabın içindir.",
+      exportAction: "Verilerimi indir",
     },
   ],
 ]);

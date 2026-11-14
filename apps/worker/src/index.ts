@@ -1,11 +1,31 @@
+import {
+  createAccountRepository,
+  createPrismaPrivacyStore,
+  createPrivacyMetrics,
+  createPrivacyService,
+  createSessionRepository,
+  createSettingsRepository,
+  createUserRepository,
+  type ObjectStorage,
+} from "@sprachpilot/api/privacy";
 import { prisma } from "@sprachpilot/db";
+import { createS3Bucket } from "@sprachpilot/s3";
 import {
   AVATAR_QUEUE_NAME,
   createHealthStatus,
+  EMAIL_JOB_ATTEMPTS,
+  EMAIL_JOB_BACKOFF_MS,
+  EMAIL_JOB_NAME,
   EMAIL_QUEUE_NAME,
+  type EmailJob,
+  GDPR_EXPORT_JOB_NAME,
+  GDPR_PURGE_JOB_NAME,
+  GDPR_QUEUE_NAME,
+  gdprExportJobSchema,
+  gdprPurgeJobSchema,
   type HealthStatus,
 } from "@sprachpilot/shared";
-import { Worker } from "bullmq";
+import { Queue, UnrecoverableError, Worker } from "bullmq";
 import { Redis } from "ioredis";
 
 import { createAvatarProcessor } from "./avatar/process-avatar-job.js";
@@ -26,7 +46,7 @@ export async function disconnectWorkerDb(): Promise<void> {
   await prisma.$disconnect();
 }
 
-function startWorker(): void {
+async function startWorker(): Promise<void> {
   let config;
   try {
     config = loadConfig();
@@ -39,6 +59,78 @@ function startWorker(): void {
 
   const connection = new Redis(config.redisUrl, { maxRetriesPerRequest: null });
   const avatarConnection = new Redis(config.redisUrl, { maxRetriesPerRequest: null });
+  const gdprConnection = new Redis(config.redisUrl, { maxRetriesPerRequest: null });
+  const gdprProducerConnection = new Redis(config.redisUrl, { maxRetriesPerRequest: null });
+  const emailProducerConnection = new Redis(config.redisUrl, { maxRetriesPerRequest: null });
+  const emailProducer = new Queue<EmailJob>(EMAIL_QUEUE_NAME, {
+    connection: emailProducerConnection,
+  });
+  const bucket = createS3Bucket(config.s3);
+  const storage: ObjectStorage = {
+    put: (input) => bucket.put(input),
+    get: (key) => bucket.get(key),
+    delete: (key) => bucket.delete(key),
+    list: (prefix) => bucket.list(prefix),
+  };
+  const privacy = createPrivacyService({
+    users: createUserRepository(),
+    accounts: createAccountRepository(),
+    sessions: createSessionRepository(),
+    settings: createSettingsRepository(),
+    store: createPrismaPrivacyStore(prisma),
+    storage,
+    emailQueue: {
+      async enqueue(job) {
+        await emailProducer.add(EMAIL_JOB_NAME, job, {
+          attempts: EMAIL_JOB_ATTEMPTS,
+          backoff: { type: "exponential", delay: EMAIL_JOB_BACKOFF_MS },
+          removeOnComplete: true,
+          removeOnFail: 100,
+        });
+      },
+      async close() {
+        await emailProducer.close();
+      },
+    },
+    gdprQueue: {
+      async enqueueExport() {},
+      async enqueuePurge() {},
+      pullExports: () => [],
+      pullDuePurges: () => [],
+      async close() {},
+    },
+    metrics: createPrivacyMetrics(),
+    clock: () => new Date(),
+    ipHashSecret: config.ipHashSecret,
+    webPublicUrl: config.webPublicUrl,
+  });
+  const gdprProducer = new Queue(GDPR_QUEUE_NAME, { connection: gdprProducerConnection });
+  await gdprProducer.upsertJobScheduler(
+    "gdpr-due-purge",
+    { every: 60 * 60 * 1000 },
+    { name: "sweep", data: {} },
+  );
+  const gdprWorker = new Worker(
+    GDPR_QUEUE_NAME,
+    async (job) => {
+      if (job.name === GDPR_EXPORT_JOB_NAME) {
+        const parsed = gdprExportJobSchema.safeParse(job.data);
+        if (!parsed.success) throw new UnrecoverableError("invalid gdpr export");
+        await privacy.processExportJob(parsed.data);
+        return;
+      }
+      if (job.name === GDPR_PURGE_JOB_NAME) {
+        const parsed = gdprPurgeJobSchema.safeParse(job.data);
+        if (!parsed.success) throw new UnrecoverableError("invalid gdpr purge");
+        await privacy.processPurgeJob(parsed.data.userId);
+        return;
+      }
+      if (job.name === "sweep") {
+        await privacy.processDuePurges();
+      }
+    },
+    { connection: gdprConnection, concurrency: 2 },
+  );
   const worker = new Worker(
     EMAIL_QUEUE_NAME,
     createEmailProcessor(createSmtpMailer(config.smtp), {
@@ -83,7 +175,7 @@ function startWorker(): void {
 
   const health = getWorkerHealth();
   console.log(
-    `[worker] ${health.service} status=${health.status} queues=${EMAIL_QUEUE_NAME},${AVATAR_QUEUE_NAME} ai.mode=${config.ai.mode}`,
+    `[worker] ${health.service} status=${health.status} queues=${EMAIL_QUEUE_NAME},${AVATAR_QUEUE_NAME},${GDPR_QUEUE_NAME} ai.mode=${config.ai.mode}`,
   );
 
   let shuttingDown = false;
@@ -92,8 +184,14 @@ function startWorker(): void {
     shuttingDown = true;
     await worker.close();
     await avatarWorker.close();
+    await gdprWorker.close();
+    await gdprProducer.close();
+    await emailProducer.close();
     connection.disconnect();
     avatarConnection.disconnect();
+    gdprConnection.disconnect();
+    gdprProducerConnection.disconnect();
+    emailProducerConnection.disconnect();
     try {
       await disconnectWorkerDb();
     } catch {
@@ -109,4 +207,7 @@ function startWorker(): void {
   });
 }
 
-startWorker();
+void startWorker().catch((error: unknown) => {
+  console.error(error instanceof Error ? error.message : error);
+  process.exit(1);
+});

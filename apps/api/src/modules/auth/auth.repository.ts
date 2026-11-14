@@ -8,6 +8,10 @@ export interface AuthUserRecord {
   displayName: string;
   role: string;
   deletedAt: Date | null;
+  deletionRequestedAt: Date | null;
+  purgeAfter: Date | null;
+  recordingStorageTransient: boolean;
+  createdAt: Date;
   emailVerifiedAt: Date | null;
   uiLocale: UiLocale;
   onboardingCompletedAt: Date | null;
@@ -19,6 +23,7 @@ export interface ConsentDraft {
   version: string;
   acceptedAt: Date;
   ipHash: string;
+  decision?: "granted" | "withdrawn";
 }
 
 export interface CreateUserInput {
@@ -48,6 +53,19 @@ export interface UserRepository {
     verifiedAt: Date,
   ): Promise<"updated" | "taken" | "missing">;
   markEmailVerified(id: string, at: Date): Promise<void>;
+  listConsents(userId: string): Promise<readonly ConsentDraft[]>;
+  appendConsent(userId: string, consent: ConsentDraft): Promise<void>;
+  scheduleDeletion(id: string, requestedAt: Date, purgeAfter: Date): Promise<void>;
+  clearDeletion(id: string): Promise<void>;
+  setRecordingTransient(id: string, transient: boolean): Promise<void>;
+  anonymize(
+    id: string,
+    identity: {
+      email: string;
+      displayName: string;
+      deletedAt: Date;
+    },
+  ): Promise<void>;
 }
 
 export interface MemoryUserRepository extends UserRepository {
@@ -68,6 +86,10 @@ function toRecord(user: {
   displayName: string;
   role: string;
   deletedAt: Date | null;
+  deletionRequestedAt?: Date | null;
+  purgeAfter?: Date | null;
+  recordingStorageTransient?: boolean;
+  createdAt?: Date;
   emailVerifiedAt: Date | null;
   uiLocale: string;
   onboardingCompletedAt: Date | null;
@@ -80,6 +102,10 @@ function toRecord(user: {
     displayName: user.displayName,
     role: user.role,
     deletedAt: user.deletedAt,
+    deletionRequestedAt: user.deletionRequestedAt ?? null,
+    purgeAfter: user.purgeAfter ?? null,
+    recordingStorageTransient: user.recordingStorageTransient ?? false,
+    createdAt: user.createdAt ?? new Date(0),
     emailVerifiedAt: user.emailVerifiedAt,
     uiLocale: readLocale(user.uiLocale),
     onboardingCompletedAt: user.onboardingCompletedAt,
@@ -101,6 +127,10 @@ function fromPrisma(user: {
   displayName: string;
   role: string;
   deletedAt: Date | null;
+  deletionRequestedAt: Date | null;
+  purgeAfter: Date | null;
+  recordingStorageTransient: boolean;
+  createdAt: Date;
   emailVerifiedAt: Date | null;
   profile: {
     uiLocale: string;
@@ -115,6 +145,10 @@ function fromPrisma(user: {
     displayName: user.displayName,
     role: user.role,
     deletedAt: user.deletedAt,
+    deletionRequestedAt: user.deletionRequestedAt,
+    purgeAfter: user.purgeAfter,
+    recordingStorageTransient: user.recordingStorageTransient,
+    createdAt: user.createdAt,
     emailVerifiedAt: user.emailVerifiedAt,
     uiLocale: user.profile?.uiLocale ?? "en",
     onboardingCompletedAt: user.profile?.onboardingCompletedAt ?? null,
@@ -147,6 +181,7 @@ export function createUserRepository(client: PrismaClient = prisma): UserReposit
               create: input.consents.map((consent) => ({
                 policy: consent.policy,
                 version: consent.version,
+                decision: consent.decision ?? "granted",
                 acceptedAt: consent.acceptedAt,
                 ipHash: consent.ipHash,
               })),
@@ -194,6 +229,68 @@ export function createUserRepository(client: PrismaClient = prisma): UserReposit
         data: { emailVerifiedAt: at },
       });
     },
+
+    async listConsents(userId) {
+      const rows = await client.consentRecord.findMany({
+        where: { userId },
+        orderBy: { acceptedAt: "asc" },
+      });
+      return rows.map((row) => ({
+        policy: row.policy,
+        version: row.version,
+        acceptedAt: row.acceptedAt,
+        ipHash: row.ipHash,
+        decision: row.decision === "withdrawn" ? "withdrawn" : "granted",
+      }));
+    },
+
+    async appendConsent(userId, consent) {
+      await client.consentRecord.create({
+        data: {
+          userId,
+          policy: consent.policy,
+          version: consent.version,
+          decision: consent.decision ?? "granted",
+          acceptedAt: consent.acceptedAt,
+          ipHash: consent.ipHash,
+        },
+      });
+    },
+
+    async scheduleDeletion(id, requestedAt, purgeAfter) {
+      await client.user.update({
+        where: { id },
+        data: { deletionRequestedAt: requestedAt, purgeAfter },
+      });
+    },
+
+    async clearDeletion(id) {
+      await client.user.update({
+        where: { id },
+        data: { deletionRequestedAt: null, purgeAfter: null },
+      });
+    },
+
+    async setRecordingTransient(id, transient) {
+      await client.user.update({
+        where: { id },
+        data: { recordingStorageTransient: transient },
+      });
+    },
+
+    async anonymize(id, identity) {
+      await client.user.update({
+        where: { id },
+        data: {
+          email: identity.email,
+          displayName: identity.displayName,
+          passwordHash: null,
+          deletedAt: identity.deletedAt,
+          deletionRequestedAt: null,
+          purgeAfter: null,
+        },
+      });
+    },
   };
 }
 
@@ -223,6 +320,10 @@ export function createMemoryUserRepository(): MemoryUserRepository {
         displayName: input.displayName,
         role: "learner",
         deletedAt: null,
+        deletionRequestedAt: null,
+        purgeAfter: null,
+        recordingStorageTransient: false,
+        createdAt: new Date(),
         emailVerifiedAt: input.emailVerifiedAt ?? null,
         uiLocale: input.uiLocale,
         onboardingCompletedAt: null as Date | null,
@@ -265,6 +366,50 @@ export function createMemoryUserRepository(): MemoryUserRepository {
       const user = [...users.values()].find((record) => record.id === id);
       if (!user || user.emailVerifiedAt) return;
       user.emailVerifiedAt = at;
+    },
+
+    async listConsents(userId) {
+      const user = [...users.values()].find((record) => record.id === userId);
+      return user ? user.consents.map((consent) => ({ ...consent })) : [];
+    },
+
+    async appendConsent(userId, consent) {
+      const user = [...users.values()].find((record) => record.id === userId);
+      if (!user) throw new Error("user not found");
+      user.consents.push({ ...consent });
+    },
+
+    async scheduleDeletion(id, requestedAt, purgeAfter) {
+      const user = [...users.values()].find((record) => record.id === id);
+      if (!user) throw new Error("user not found");
+      user.deletionRequestedAt = requestedAt;
+      user.purgeAfter = purgeAfter;
+    },
+
+    async clearDeletion(id) {
+      const user = [...users.values()].find((record) => record.id === id);
+      if (!user) return;
+      user.deletionRequestedAt = null;
+      user.purgeAfter = null;
+    },
+
+    async setRecordingTransient(id, transient) {
+      const user = [...users.values()].find((record) => record.id === id);
+      if (!user) throw new Error("user not found");
+      user.recordingStorageTransient = transient;
+    },
+
+    async anonymize(id, identity) {
+      const user = [...users.values()].find((record) => record.id === id);
+      if (!user) return;
+      users.delete(user.email);
+      user.email = identity.email;
+      user.displayName = identity.displayName;
+      user.passwordHash = null;
+      user.deletedAt = identity.deletedAt;
+      user.deletionRequestedAt = null;
+      user.purgeAfter = null;
+      users.set(user.email, user);
     },
 
     markDeleted(email) {

@@ -15,6 +15,7 @@
   "dependencies": {
     "@react-email/components": "^1.0.12",
     "@react-email/render": "^2.1.0",
+    "@sprachpilot/api": "workspace:*",
     "@sprachpilot/db": "workspace:*",
     "@sprachpilot/s3": "workspace:*",
     "@sprachpilot/shared": "workspace:*",
