@@ -15,8 +15,11 @@ export interface PrivacyExportData {
     id: string;
     createdAt: string;
     lastUsedAt: string;
+    expiresAt: string;
+    revokedAt: string | null;
     userAgent: string | null;
   }[];
+  tandem: { profile: null; messages: readonly TandemMessage[] };
   consents: readonly {
     policy: string;
     version: string;
@@ -52,6 +55,7 @@ export function exportEntries(data: PrivacyExportData): ZipEntry[] {
     { path: "notifications.json", body: json(data.notifications) },
     { path: "quiet-hours.json", body: json(data.quietHours) },
     { path: "accounts.json", body: json(data.accounts) },
+    { path: "tandem.json", body: json(data.tandem) },
     ...data.files,
   ];
 }

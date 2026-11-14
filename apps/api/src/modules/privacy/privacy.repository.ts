@@ -9,7 +9,7 @@ export interface ExportRecord {
   expiresAt: Date | null;
 }
 
-export interface PrivacyStore {
+export interface PrivacyRepository {
   createExport(input: { id: string; userId: string }): Promise<void>;
   findExport(id: string): Promise<ExportRecord | null>;
   latestExport(userId: string): Promise<ExportRecord | null>;
@@ -26,13 +26,14 @@ export interface PrivacyStore {
   auditIps(userId: string): Promise<string[]>;
   deleteUserRows(userId: string): Promise<void>;
   listDueUserIds(now: Date): Promise<string[]>;
+  countOverdue(now: Date): Promise<number>;
 }
 
-export interface MemoryPrivacyStore extends PrivacyStore {
+export interface MemoryPrivacyRepository extends PrivacyRepository {
   exportCount(userId: string): number;
 }
 
-export function createMemoryPrivacyStore(): MemoryPrivacyStore {
+export function createMemoryPrivacyRepository(): MemoryPrivacyRepository {
   const exports: ExportRecord[] = [];
   const recordings: { userId: string; file: ZipEntry }[] = [];
   const tandem: TandemMessage[] = [];
@@ -107,13 +108,16 @@ export function createMemoryPrivacyStore(): MemoryPrivacyStore {
     async listDueUserIds() {
       return [];
     },
+    async countOverdue() {
+      return 0;
+    },
     exportCount(userId) {
       return exports.filter((row) => row.userId === userId).length;
     },
   };
 }
 
-export function createPrismaPrivacyStore(client: PrismaClient): PrivacyStore {
+export function createPrismaPrivacyRepository(client: PrismaClient): PrivacyRepository {
   return {
     async createExport(input) {
       await client.dataExport.create({
@@ -183,6 +187,12 @@ export function createPrismaPrivacyStore(client: PrismaClient): PrivacyStore {
         select: { id: true },
       });
       return rows.map((row) => row.id);
+    },
+    async countOverdue(now) {
+      const cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      return client.user.count({
+        where: { purgeAfter: { lte: cutoff }, deletedAt: null },
+      });
     },
   };
 }

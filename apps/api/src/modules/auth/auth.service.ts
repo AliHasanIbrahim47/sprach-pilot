@@ -348,7 +348,7 @@ export function createAuthService(dependencies: AuthServiceDependencies): AuthSe
         user?.purgeAfter !== null &&
         user?.purgeAfter !== undefined &&
         user.purgeAfter.getTime() <= now.getTime();
-      if (!user || user.deletedAt !== null || refreshPurgeDue) {
+      if (!user || user.deletedAt !== null || refreshPurgeDue || user.deletionRequestedAt) {
         await sessions.revokeFamily({
           familyId: outcome.session.familyId,
           reason: "revoked",

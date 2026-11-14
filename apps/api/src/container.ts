@@ -83,17 +83,13 @@ import {
   type PrivacyController,
 } from "./modules/privacy/privacy.controller.js";
 import { createPrivacyMetrics, type PrivacyMetrics } from "./modules/privacy/privacy.metrics.js";
+import {
+  createMemoryPrivacyRepository,
+  createPrismaPrivacyRepository,
+  type PrivacyRepository,
+} from "./modules/privacy/privacy.repository.js";
 import { createPrivacyRouter } from "./modules/privacy/privacy.routes.js";
 import { createPrivacyService, type PrivacyService } from "./modules/privacy/privacy.service.js";
-import {
-  createMemoryPrivacyStore,
-  createPrismaPrivacyStore,
-  type PrivacyStore,
-} from "./modules/privacy/privacy.store.js";
-import {
-  assertPrivacyDomains,
-  BUILTIN_PRIVACY_DOMAINS,
-} from "./modules/privacy/privacy-registry.js";
 import {
   type AvatarQueue,
   createBullAvatarQueue,
@@ -169,7 +165,7 @@ export interface SettingsOverrides {
 }
 
 export interface PrivacyOverrides {
-  store?: PrivacyStore;
+  store?: PrivacyRepository;
   queue?: GdprQueue;
   metrics?: PrivacyMetrics;
   clock?: () => Date;
@@ -276,6 +272,9 @@ export function createContainer(
     clock,
     ipHashSecret: config.ipHashSecret,
     logger: authLogger,
+    onDeletionCancelled() {
+      privacyMetrics.recordDeletion("cancelled");
+    },
   });
 
   const authController = createAuthController(
@@ -321,11 +320,10 @@ export function createContainer(
     settingsMetrics,
   );
   const settingsRouter = createSettingsRouter(settingsController, requireAuth);
-  assertPrivacyDomains(BUILTIN_PRIVACY_DOMAINS);
   const privacyClock = overrides.privacy?.clock ?? overrides.settings?.clock ?? clock;
   const privacyStore =
     overrides.privacy?.store ??
-    (useMemoryPorts ? createMemoryPrivacyStore() : createPrismaPrivacyStore(prisma));
+    (useMemoryPorts ? createMemoryPrivacyRepository() : createPrismaPrivacyRepository(prisma));
   const gdprTransport = resolveGdprQueue(overrides.privacy?.queue, useMemoryPorts, config.redisUrl);
   const privacyService: PrivacyService = createPrivacyService({
     users,

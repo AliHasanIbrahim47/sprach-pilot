@@ -1,15 +1,25 @@
 import { REQUIRED_PRIVACY_DOMAINS } from "@sprachpilot/shared";
 
+export interface PrivacyDomainHandler {
+  id: string;
+  exportUser: (userId: string) => Promise<unknown>;
+  deleteUser: (userId: string) => Promise<void>;
+}
+
 /** Fails closed when a personal-data domain has no export and delete handler. */
-export function assertPrivacyDomains(registered: readonly string[]): void {
-  const present = new Set(registered);
+export function assertPrivacyDomains(registered: readonly PrivacyDomainHandler[]): void {
+  const present = new Set<string>();
+  for (const domain of registered) {
+    if (typeof domain.exportUser !== "function" || typeof domain.deleteUser !== "function") {
+      throw new Error(`privacy domain ${domain.id} is missing an export or delete handler`);
+    }
+    present.add(domain.id);
+  }
   const missing = REQUIRED_PRIVACY_DOMAINS.filter((domain) => !present.has(domain));
   if (missing.length > 0) {
     throw new Error(`privacy domains are not registered: ${missing.join(", ")}`);
   }
 }
-
-export const BUILTIN_PRIVACY_DOMAINS = [...REQUIRED_PRIVACY_DOMAINS];
 
 /**
  * Columns marked `/// @pii` in schema.prisma.

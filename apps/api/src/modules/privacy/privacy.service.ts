@@ -15,6 +15,7 @@ import {
   UnauthorizedError,
   ValidationError,
   verifyExportToken,
+  type ZipEntry,
 } from "@sprachpilot/shared";
 
 import type { AccountRepository } from "../auth/account.repository.js";
@@ -26,7 +27,8 @@ import { keyFromAvatarUrl, type ObjectStorage } from "../settings/object-storage
 import type { SettingsRepository } from "../settings/settings.repository.js";
 import type { GdprQueue } from "./gdpr-queue.js";
 import type { PrivacyMetrics } from "./privacy.metrics.js";
-import type { PrivacyStore } from "./privacy.store.js";
+import type { PrivacyRepository } from "./privacy.repository.js";
+import { assertPrivacyDomains } from "./privacy-registry.js";
 
 const STORAGE_PREFIXES = ["avatars/", "private/avatars/", "privacy/exports/"] as const;
 
@@ -70,7 +72,7 @@ export interface PrivacyServiceDependencies {
   accounts: AccountRepository;
   sessions: SessionRepository;
   settings: SettingsRepository;
-  store: PrivacyStore;
+  store: PrivacyRepository;
   storage: ObjectStorage;
   emailQueue: EmailQueue;
   gdprQueue: GdprQueue;
@@ -96,6 +98,58 @@ export function createPrivacyService(dependencies: PrivacyServiceDependencies): 
     webPublicUrl,
   } = dependencies;
 
+  const identityDomain = {
+    id: "identity",
+    async exportUser(userId: string) {
+      return {
+        user: await users.findById(userId),
+        profile: await settings.getProfile(userId),
+        notifications:
+          (await settings.getNotifications(userId)) ?? defaultNotificationPreferences(),
+        quietHours: await settings.getQuietHours(userId),
+        sessions: await sessions.listForUser(userId),
+        consents: await users.listConsents(userId),
+        accounts: await accounts.listLinked(userId),
+      };
+    },
+    async deleteUser(userId: string) {
+      await store.clearAuditIps(userId);
+      await store.deleteUserRows(userId);
+      await users.anonymize(userId, purgeIdentity(userId, clock()));
+    },
+  };
+  const avatarsDomain = {
+    id: "avatars",
+    async exportUser(userId: string) {
+      const profile = await settings.getProfile(userId);
+      return storedFiles(userId, profile?.avatarUrl ?? null);
+    },
+    async deleteUser(userId: string) {
+      const profile = await settings.getProfile(userId);
+      await deleteStoredObjects(userId, profile?.avatarUrl ?? null);
+    },
+  };
+  const recordingsDomain = {
+    id: "recordings",
+    async exportUser(userId: string) {
+      return store.recordings(userId);
+    },
+    async deleteUser(userId: string) {
+      await store.deleteRecordings(userId);
+    },
+  };
+  const tandemDomain = {
+    id: "tandem",
+    async exportUser(userId: string) {
+      const messages = await store.messages();
+      return messages.filter((message) => message.authorId === userId);
+    },
+    async deleteUser(userId: string) {
+      await store.anonymizeMessages(userId);
+    },
+  };
+  assertPrivacyDomains([identityDomain, avatarsDomain, recordingsDomain, tandemDomain]);
+
   return {
     async overview(userId) {
       const user = await requireActive(users, userId);
@@ -112,6 +166,7 @@ export function createPrivacyService(dependencies: PrivacyServiceDependencies): 
                 latest.status === "ready" && latest.expiresAt && latest.expiresAt > clock()
                   ? downloadUrl(
                       webPublicUrl,
+                      user.uiLocale,
                       latest.id,
                       latest.userId,
                       latest.expiresAt,
@@ -220,12 +275,14 @@ export function createPrivacyService(dependencies: PrivacyServiceDependencies): 
 
     async processDuePurges() {
       const now = clock();
+      metrics.setOverdue(await store.countOverdue(now));
       const queued = gdprQueue.pullDuePurges(now);
       const fromStore = await store.listDueUserIds(now);
       const userIds = [...new Set([...queued, ...fromStore])];
       for (const userId of userIds) {
         await purgeUser(userId, now);
       }
+      metrics.setOverdue(await store.countOverdue(now));
     },
   };
 
@@ -237,19 +294,16 @@ export function createPrivacyService(dependencies: PrivacyServiceDependencies): 
   }): Promise<void> {
     const existing = await store.findExport(job.exportId);
     if (!existing || existing.status !== "queued") return;
-    const user = await users.findById(job.userId);
-    if (!user || user.deletedAt) {
+    const identity = await identityDomain.exportUser(job.userId);
+    if (!identity?.user || identity.user.deletedAt) {
       await store.markExportFailed(job.exportId);
       return;
     }
-    const profile = await settings.getProfile(user.id);
-    const notifications =
-      (await settings.getNotifications(user.id)) ?? defaultNotificationPreferences();
-    const quietHours = await settings.getQuietHours(user.id);
-    const activeSessions = await sessions.listActive(user.id, clock());
-    const consents = await users.listConsents(user.id);
-    const providers = await accounts.listLinked(user.id);
-    const files = await collectFiles(user.id, profile?.avatarUrl ?? null);
+    const user = identity.user;
+    const profile = identity.profile;
+    const recordings = await recordingsDomain.exportUser(user.id);
+    const avatarFiles = await avatarsDomain.exportUser(user.id);
+    const tandem = await tandemDomain.exportUser(user.id);
     const now = clock();
     const expiresAt = new Date(now.getTime() + GDPR_GRACE_MS);
     const objectKey = `privacy/exports/${user.id}/${job.exportId}.zip`;
@@ -263,25 +317,28 @@ export function createPrivacyService(dependencies: PrivacyServiceDependencies): 
       uiLocale: user.uiLocale,
       goals: profile?.goals ?? [],
       cefrLevel: profile?.cefrLevel ?? null,
-      sessions: activeSessions.map((session) => ({
+      sessions: identity.sessions.map((session) => ({
         id: session.id,
         createdAt: session.createdAt.toISOString(),
         lastUsedAt: session.lastUsedAt.toISOString(),
+        expiresAt: session.expiresAt.toISOString(),
+        revokedAt: session.revokedAt?.toISOString() ?? null,
         userAgent: session.userAgent,
       })),
-      consents: consents.map((consent) => ({
+      consents: identity.consents.map((consent) => ({
         policy: consent.policy,
         version: consent.version,
         decision: consent.decision ?? "granted",
         recordedAt: consent.acceptedAt.toISOString(),
       })),
-      notifications,
-      quietHours,
-      accounts: providers.map((account) => ({
+      notifications: identity.notifications,
+      quietHours: identity.quietHours,
+      accounts: identity.accounts.map((account) => ({
         provider: account.provider,
         providerAccountId: account.providerAccountId,
       })),
-      files,
+      tandem: { profile: null, messages: tandem },
+      files: [...recordings, ...avatarFiles],
     });
     await storage.put({
       key: objectKey,
@@ -295,34 +352,29 @@ export function createPrivacyService(dependencies: PrivacyServiceDependencies): 
       to: job.email,
       locale,
       template: "export-ready",
-      url: downloadUrl(webPublicUrl, job.exportId, user.id, expiresAt, ipHashSecret),
+      url: downloadUrl(webPublicUrl, locale, job.exportId, user.id, expiresAt, ipHashSecret),
     });
   }
 
   async function purgeUser(userId: string, now: Date): Promise<void> {
     const user = await users.findById(userId);
-    if (!user || user.deletedAt) return;
+    if (!user) return;
+    if (user.deletedAt) {
+      await deleteStoredObjects(userId, null);
+      return;
+    }
     if (!user.purgeAfter || user.purgeAfter.getTime() > now.getTime()) return;
     const overdueMs = now.getTime() - user.purgeAfter.getTime();
     if (overdueMs > 24 * 60 * 60 * 1000) metrics.recordDeletion("overdue");
-    const keys = await objectKeysFor(userId, null);
-    const profile = await settings.getProfile(userId);
-    const avatarKey = keyFromAvatarUrl(profile?.avatarUrl ?? null);
-    if (avatarKey) keys.push(avatarKey);
-    const identity = purgeIdentity(userId, now);
-    await store.anonymizeMessages(userId);
-    await store.deleteRecordings(userId);
-    await store.clearAuditIps(userId);
-    await store.deleteUserRows(userId);
-    await users.anonymize(userId, identity);
-    for (const key of new Set(keys)) {
-      await storage.delete(key);
-    }
+    await recordingsDomain.deleteUser(userId);
+    await tandemDomain.deleteUser(userId);
+    await avatarsDomain.deleteUser(userId);
+    await identityDomain.deleteUser(userId);
     metrics.recordDeletion("purged");
   }
 
-  async function collectFiles(userId: string, avatarUrl: string | null) {
-    const files = await store.recordings(userId);
+  async function storedFiles(userId: string, avatarUrl: string | null): Promise<ZipEntry[]> {
+    const files: ZipEntry[] = [];
     const keys = await objectKeysFor(userId, avatarUrl);
     for (const key of keys) {
       if (key.startsWith("privacy/exports/")) continue;
@@ -332,6 +384,13 @@ export function createPrivacyService(dependencies: PrivacyServiceDependencies): 
       files.push({ path: `files/${name}`, body: object.body });
     }
     return files;
+  }
+
+  async function deleteStoredObjects(userId: string, avatarUrl: string | null): Promise<void> {
+    const keys = await objectKeysFor(userId, avatarUrl);
+    for (const key of new Set(keys)) {
+      await storage.delete(key);
+    }
   }
 
   async function objectKeysFor(userId: string, avatarUrl: string | null): Promise<string[]> {
@@ -347,9 +406,7 @@ export function createPrivacyService(dependencies: PrivacyServiceDependencies): 
 
 async function requireActive(users: UserRepository, userId: string) {
   const user = await users.findById(userId);
-  if (!user || user.deletedAt) {
-    throw new ValidationError({ detail: "Account is not available." });
-  }
+  if (!user || user.deletedAt) throw new NotFoundError("Account is not available.");
   return user;
 }
 
@@ -378,13 +435,14 @@ async function currentConsents(users: UserRepository, userId: string) {
 
 function downloadUrl(
   webPublicUrl: string,
+  locale: string,
   exportId: string,
   userId: string,
   expiresAt: Date,
   secret: string,
 ): string {
   const token = signExportToken({ secret, exportId, userId, expiresAt });
-  const url = new URL("/en/privacy/download", webPublicUrl);
+  const url = new URL(`/${locale}/privacy/download`, webPublicUrl);
   url.searchParams.set("exportId", exportId);
   url.searchParams.set("token", token);
   return url.toString();

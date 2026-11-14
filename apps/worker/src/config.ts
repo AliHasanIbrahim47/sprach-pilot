@@ -63,6 +63,7 @@ const workerEnvSchema = z.object({
 
   WEB_PUBLIC_URL: z.string().url().default("http://localhost:3000"),
   IP_HASH_SECRET: z.string().min(16, "must be at least 16 characters"),
+  METRICS_PORT: z.coerce.number().int().positive().default(3003),
 });
 
 export type WorkerConfig = Readonly<{
@@ -97,6 +98,7 @@ export type WorkerConfig = Readonly<{
   }>;
   webPublicUrl: string;
   ipHashSecret: string;
+  metricsPort: number;
 }>;
 
 const SECRET_KEYS = new Set([
@@ -159,6 +161,7 @@ function toWorkerConfig(env: z.infer<typeof workerEnvSchema>): WorkerConfig {
     },
     webPublicUrl: env.WEB_PUBLIC_URL,
     ipHashSecret: env.IP_HASH_SECRET,
+    metricsPort: env.METRICS_PORT,
   });
 }
 

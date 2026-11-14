@@ -7,8 +7,8 @@ import { createMemorySessionRepository } from "../src/modules/auth/session.repos
 import { createMemoryEmailQueue } from "../src/modules/email/email-queue.js";
 import { createMemoryGdprQueue } from "../src/modules/privacy/gdpr-queue.js";
 import { createPrivacyMetrics } from "../src/modules/privacy/privacy.metrics.js";
+import { createMemoryPrivacyRepository } from "../src/modules/privacy/privacy.repository.js";
 import { createPrivacyService } from "../src/modules/privacy/privacy.service.js";
-import { createMemoryPrivacyStore } from "../src/modules/privacy/privacy.store.js";
 import { createMemoryObjectStorage } from "../src/modules/settings/object-storage.js";
 import { createMemorySettingsRepository } from "../src/modules/settings/settings.repository.js";
 
@@ -17,7 +17,7 @@ const START = new Date("2026-11-01T00:00:00.000Z");
 describe("gdpr deletion verification", () => {
   it("removes personal data after the grace period and keeps tandem messages as Deleted user", async () => {
     const users = createMemoryUserRepository();
-    const store = createMemoryPrivacyStore();
+    const store = createMemoryPrivacyRepository();
     const storage = createMemoryObjectStorage();
     let now = START;
     const created = await users.createWithConsent({

@@ -1,6 +1,8 @@
+import { createServer } from "node:http";
+
 import {
   createAccountRepository,
-  createPrismaPrivacyStore,
+  createPrismaPrivacyRepository,
   createPrivacyMetrics,
   createPrivacyService,
   createSessionRepository,
@@ -72,12 +74,13 @@ async function startWorker(): Promise<void> {
     delete: (key) => bucket.delete(key),
     list: (prefix) => bucket.list(prefix),
   };
+  const privacyMetrics = createPrivacyMetrics();
   const privacy = createPrivacyService({
     users: createUserRepository(),
     accounts: createAccountRepository(),
     sessions: createSessionRepository(),
     settings: createSettingsRepository(),
-    store: createPrismaPrivacyStore(prisma),
+    store: createPrismaPrivacyRepository(prisma),
     storage,
     emailQueue: {
       async enqueue(job) {
@@ -99,7 +102,7 @@ async function startWorker(): Promise<void> {
       pullDuePurges: () => [],
       async close() {},
     },
-    metrics: createPrivacyMetrics(),
+    metrics: privacyMetrics,
     clock: () => new Date(),
     ipHashSecret: config.ipHashSecret,
     webPublicUrl: config.webPublicUrl,
@@ -131,6 +134,19 @@ async function startWorker(): Promise<void> {
     },
     { connection: gdprConnection, concurrency: 2 },
   );
+  const metricsServer = createServer((req, res) => {
+    if (req.url?.split("?")[0] !== "/metrics") {
+      res.writeHead(404);
+      res.end();
+      return;
+    }
+    res.writeHead(200, { "content-type": "text/plain; version=0.0.4" });
+    res.end(privacyMetrics.renderPrometheus());
+  });
+  await new Promise<void>((resolve, reject) => {
+    metricsServer.once("error", reject);
+    metricsServer.listen(config.metricsPort, resolve);
+  });
   const worker = new Worker(
     EMAIL_QUEUE_NAME,
     createEmailProcessor(createSmtpMailer(config.smtp), {
@@ -186,6 +202,9 @@ async function startWorker(): Promise<void> {
     await avatarWorker.close();
     await gdprWorker.close();
     await gdprProducer.close();
+    await new Promise<void>((resolve) => {
+      metricsServer.close(() => resolve());
+    });
     await emailProducer.close();
     connection.disconnect();
     avatarConnection.disconnect();

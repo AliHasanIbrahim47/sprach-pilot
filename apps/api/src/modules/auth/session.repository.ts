@@ -62,6 +62,8 @@ export interface SessionRepository {
     now: Date;
   }): Promise<void>;
   listActive(userId: string, now: Date): Promise<SessionRecord[]>;
+  /** Every session row for an export. Callers must not persist token hashes. */
+  listForUser(userId: string): Promise<SessionRecord[]>;
 }
 
 interface SessionRow {
@@ -225,6 +227,14 @@ export function createSessionRepository(client: PrismaClient = prisma): SessionR
       });
       return rows.map(toSessionRecord);
     },
+
+    async listForUser(userId) {
+      const rows = await client.session.findMany({
+        where: { userId },
+        orderBy: { lastUsedAt: "desc" },
+      });
+      return rows.map(toSessionRecord);
+    },
   };
 }
 
@@ -346,6 +356,13 @@ export function createMemorySessionRepository(): MemorySessionRepository {
             row.revokedAt === null &&
             row.expiresAt.getTime() > now.getTime(),
         )
+        .sort((left, right) => right.lastUsedAt.getTime() - left.lastUsedAt.getTime())
+        .map(snapshot);
+    },
+
+    async listForUser(userId) {
+      return [...rows.values()]
+        .filter((row) => row.userId === userId)
         .sort((left, right) => right.lastUsedAt.getTime() - left.lastUsedAt.getTime())
         .map(snapshot);
     },

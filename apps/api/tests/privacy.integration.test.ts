@@ -11,7 +11,7 @@ import { createMemoryLoginThrottle } from "../src/modules/auth/login-throttle.js
 import { createAuthMetrics } from "../src/modules/auth/metrics.js";
 import type { PasswordHasher } from "../src/modules/auth/password-hasher.js";
 import { createMemorySessionRepository } from "../src/modules/auth/session.repository.js";
-import { createMemoryPrivacyStore } from "../src/modules/privacy/privacy.store.js";
+import { createMemoryPrivacyRepository } from "../src/modules/privacy/privacy.repository.js";
 import { createMemoryObjectStorage } from "../src/modules/settings/object-storage.js";
 import { createMemorySettingsRepository } from "../src/modules/settings/settings.repository.js";
 import { createTestEmailPorts } from "./helpers/email.js";
@@ -38,7 +38,7 @@ function createPrivacyApp() {
   const users = createMemoryUserRepository();
   const email = createTestEmailPorts();
   const storage = createMemoryObjectStorage();
-  const store = createMemoryPrivacyStore();
+  const store = createMemoryPrivacyRepository();
   let now = new Date();
   const clock = () => now;
   const config = loadConfig(
@@ -112,6 +112,12 @@ describe("privacy http", () => {
       contentType: "image/webp",
       cacheControl: "public, max-age=31536000",
     });
+    await harness.store.addMessage({
+      id: "message-1",
+      authorId: user.id,
+      authorLabel: "Ada",
+      body: "Hallo",
+    });
 
     const queued = await request(harness.app)
       .post("/v1/privacy/export")
@@ -124,7 +130,8 @@ describe("privacy http", () => {
     const message = harness.email.emailQueue.jobs().at(-1);
     expect(message?.template).toBe("export-ready");
     expect(message?.to).toBe("ada@example.com");
-    const link = new URL(message?.url ?? "");
+    const link = new URL(message?.url ?? "http://localhost");
+    expect(link.pathname).toBe("/en/privacy/download");
     const token = link.searchParams.get("token");
     const exportId = link.searchParams.get("exportId");
     expect(token).toBeTruthy();
@@ -148,6 +155,11 @@ describe("privacy http", () => {
     expect(profile.email).toBe("ada@example.com");
     expect(profile.displayName).toBe("Ada");
     expect(files.get("files/photo.webp")?.toString("utf8")).toBe("avatar-bytes");
+    const tandem = JSON.parse(files.get("tandem.json")?.toString("utf8") ?? "{}") as {
+      messages?: { body?: string; authorLabel?: string }[];
+    };
+    expect(tandem.messages?.[0]?.body).toBe("Hallo");
+    expect(tandem.messages?.[0]?.authorLabel).toBe("Ada");
     expect(download.body.toString("utf8")).not.toContain("hashed:");
 
     const expired = new Date(harness.now().getTime() + 8 * 24 * 60 * 60 * 1000);

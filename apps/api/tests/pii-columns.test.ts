@@ -21,10 +21,25 @@ describe("privacy registry", () => {
     expect(found).toEqual([...PII_COLUMNS].sort());
   });
 
-  it("fails when a personal-data domain is not registered", () => {
-    expect(() => assertPrivacyDomains(["identity", "avatars", "recordings"])).toThrow(/tandem/);
+  it("fails when a personal-data domain has no export and delete handler", () => {
+    const handler = {
+      exportUser: async () => undefined,
+      deleteUser: async () => undefined,
+    };
     expect(() =>
-      assertPrivacyDomains(["identity", "avatars", "recordings", "tandem"]),
-    ).not.toThrow();
+      assertPrivacyDomains([
+        { id: "identity", ...handler },
+        { id: "avatars", ...handler },
+        { id: "recordings", ...handler },
+      ]),
+    ).toThrow(/tandem/);
+    expect(() =>
+      assertPrivacyDomains([
+        { id: "identity", exportUser: handler.exportUser, deleteUser: undefined as never },
+        { id: "avatars", ...handler },
+        { id: "recordings", ...handler },
+        { id: "tandem", ...handler },
+      ]),
+    ).toThrow(/identity/);
   });
 });

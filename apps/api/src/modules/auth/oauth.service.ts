@@ -51,6 +51,7 @@ export interface OAuthServiceDependencies {
   clock: () => Date;
   ipHashSecret: string;
   logger: AuthLogger;
+  onDeletionCancelled?: () => void;
 }
 
 export interface OAuthStartResult {
@@ -96,7 +97,29 @@ export function createOAuthService(dependencies: OAuthServiceDependencies): OAut
     clock,
     ipHashSecret,
     logger,
+    onDeletionCancelled,
   } = dependencies;
+
+  function purgeIsDue(user: { purgeAfter: Date | null }, now: Date): boolean {
+    return user.purgeAfter !== null && user.purgeAfter.getTime() <= now.getTime();
+  }
+
+  async function cancelDeletionDuringGrace(user: {
+    id: string;
+    deletedAt: Date | null;
+    purgeAfter: Date | null;
+    deletionRequestedAt: Date | null;
+  }): Promise<void> {
+    const now = clock();
+    if (user.deletedAt !== null || purgeIsDue(user, now)) {
+      metrics.recordLogin("failure");
+      throw new UnauthorizedError(AUTH_COPY.oauthFailed);
+    }
+    if (user.deletionRequestedAt) {
+      await users.clearDeletion(user.id);
+      onDeletionCancelled?.();
+    }
+  }
 
   function requireGoogle(): { google: GoogleOAuthProvider; redirectUri: string } {
     const { google, redirectUri } = dependencies;
@@ -226,10 +249,11 @@ export function createOAuthService(dependencies: OAuthServiceDependencies): OAut
       const linked = await accounts.findByProvider(GOOGLE_PROVIDER, identity.providerAccountId);
       if (linked) {
         const user = await users.findById(linked.userId);
-        if (!user || user.deletedAt !== null) {
+        if (!user) {
           metrics.recordLogin("failure");
           throw new UnauthorizedError(AUTH_COPY.oauthFailed);
         }
+        await cancelDeletionDuringGrace(user);
         return authenticatedResult(user, context, {
           returnTo: pending.returnTo,
           locale: pending.locale,
@@ -237,7 +261,7 @@ export function createOAuthService(dependencies: OAuthServiceDependencies): OAut
       }
 
       const existing = await users.findByEmail(identity.email);
-      if (existing && existing.deletedAt === null) {
+      if (existing && existing.deletedAt === null && !purgeIsDue(existing, clock())) {
         if (!existing.passwordHash) {
           // Existing OAuth-only account without this Google subject — refuse to auto-claim.
           metrics.recordLogin("failure");
@@ -331,6 +355,7 @@ export function createOAuthService(dependencies: OAuthServiceDependencies): OAut
       }
 
       await oauthState.takeLink(input.linkToken);
+      await cancelDeletionDuringGrace(user);
 
       const already = await accounts.findByProvider(GOOGLE_PROVIDER, pending.providerAccountId);
       if (already && already.userId !== user.id) {
