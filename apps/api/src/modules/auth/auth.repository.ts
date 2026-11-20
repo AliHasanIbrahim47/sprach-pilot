@@ -56,7 +56,10 @@ export interface UserRepository {
   listConsents(userId: string): Promise<readonly ConsentDraft[]>;
   appendConsent(userId: string, consent: ConsentDraft): Promise<void>;
   scheduleDeletion(id: string, requestedAt: Date, purgeAfter: Date): Promise<void>;
-  clearDeletion(id: string): Promise<void>;
+  /** Clears a deletion only while `purgeAfter` is still after `now`. */
+  clearDeletion(id: string, now: Date): Promise<boolean>;
+  /** Claims a due purge. False when cancellation still owns the schedule or it is not due. */
+  claimPurge(id: string, now: Date): Promise<boolean>;
   setRecordingTransient(id: string, transient: boolean): Promise<void>;
   anonymize(
     id: string,
@@ -264,11 +267,20 @@ export function createUserRepository(client: PrismaClient = prisma): UserReposit
       });
     },
 
-    async clearDeletion(id) {
-      await client.user.update({
-        where: { id },
+    async clearDeletion(id, now) {
+      const cleared = await client.user.updateMany({
+        where: { id, deletedAt: null, purgeAfter: { gt: now } },
         data: { deletionRequestedAt: null, purgeAfter: null },
       });
+      return cleared.count > 0;
+    },
+
+    async claimPurge(id, now) {
+      const claimed = await client.user.updateMany({
+        where: { id, deletedAt: null, purgeAfter: { lte: now } },
+        data: { deletionRequestedAt: now },
+      });
+      return claimed.count > 0;
     },
 
     async setRecordingTransient(id, transient) {
@@ -386,11 +398,29 @@ export function createMemoryUserRepository(): MemoryUserRepository {
       user.purgeAfter = purgeAfter;
     },
 
-    async clearDeletion(id) {
+    async clearDeletion(id, now) {
       const user = [...users.values()].find((record) => record.id === id);
-      if (!user) return;
+      const stillOpen =
+        user &&
+        !user.deletedAt &&
+        user.purgeAfter !== null &&
+        user.purgeAfter.getTime() > now.getTime();
+      if (!user || !stillOpen) return false;
       user.deletionRequestedAt = null;
       user.purgeAfter = null;
+      return true;
+    },
+
+    async claimPurge(id, now) {
+      const user = [...users.values()].find((record) => record.id === id);
+      const due =
+        user &&
+        !user.deletedAt &&
+        user.purgeAfter !== null &&
+        user.purgeAfter.getTime() <= now.getTime();
+      if (!user || !due) return false;
+      user.deletionRequestedAt = now;
+      return true;
     },
 
     async setRecordingTransient(id, transient) {

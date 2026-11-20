@@ -180,6 +180,12 @@ describe("privacy http", () => {
     expect(deletion.status).toBe(202);
     expect(deletion.headers["set-cookie"]?.join(";") ?? "").toContain("Max-Age=0");
 
+    const refreshCookie = cookie.split("; ").find((part) => part.startsWith("sp_refresh="));
+    const revoked = await request(harness.app)
+      .post("/v1/auth/refresh")
+      .set("cookie", refreshCookie ?? "");
+    expect(revoked.status).toBe(401);
+
     const blocked = await request(harness.app).get("/v1/privacy");
     expect(blocked.status).toBe(401);
 

@@ -995,6 +995,9 @@ openApiRegistry.registerPath({
   summary: "Download a data export",
   description: "Requires the signed token from the export email. The token expires after 7 days.",
   request: {
+    params: z.object({
+      exportId: z.string().min(1),
+    }),
     query: z.object({ token: z.string() }),
   },
   responses: {

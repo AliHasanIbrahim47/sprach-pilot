@@ -20,6 +20,12 @@ interface PrivacyPanelProps {
   }) => Promise<PrivacyResult>;
 }
 
+function isNavigationError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null || !("digest" in error)) return false;
+  const digest = String((error as { digest: unknown }).digest);
+  return digest.startsWith("NEXT_REDIRECT") || digest.startsWith("NEXT_NOT_FOUND");
+}
+
 const CONSENT_LABEL = {
   recording_storage: "consentRecording",
   product_emails: "consentProductEmails",
@@ -41,15 +47,24 @@ export function PrivacyPanel({
   const [isExporting, setIsExporting] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [decisions, setDecisions] = useState<Record<string, "granted" | "withdrawn">>(() =>
+    Object.fromEntries(overview.consents.map((consent) => [consent.policy, consent.decision])),
+  );
   const optional = overview.consents.filter((consent) => consent.policy in CONSENT_LABEL);
 
   async function handleExport(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setSummary("");
     setIsExporting(true);
-    const result = await onExport();
-    setIsExporting(false);
-    setSummary(settingsStatusMessage(result, t("exportQueued"), tErrors));
+    try {
+      const result = await onExport();
+      setSummary(settingsStatusMessage(result, t("exportQueued"), tErrors));
+    } catch (error) {
+      if (isNavigationError(error)) throw error;
+      setSummary(tErrors("internal"));
+    } finally {
+      setIsExporting(false);
+    }
   }
 
   async function handleDelete(event: FormEvent<HTMLFormElement>): Promise<void> {
@@ -57,9 +72,15 @@ export function PrivacyPanel({
     if (!confirmed) return;
     setSummary("");
     setIsDeleting(true);
-    const result = await onDelete();
-    setIsDeleting(false);
-    if (!result.ok) setSummary(settingsStatusMessage(result, "", tErrors));
+    try {
+      const result = await onDelete();
+      if (!result.ok) setSummary(settingsStatusMessage(result, "", tErrors));
+    } catch (error) {
+      if (isNavigationError(error)) throw error;
+      setSummary(tErrors("internal"));
+    } finally {
+      setIsDeleting(false);
+    }
   }
 
   async function handleConsent(
@@ -68,6 +89,10 @@ export function PrivacyPanel({
   ): Promise<void> {
     setSummary("");
     const result = await onConsent({ policy, granted });
+    if (result.ok) {
+      const decision = granted ? "granted" : "withdrawn";
+      setDecisions((current) => ({ ...current, [policy]: decision }));
+    }
     const success =
       policy === "recording_storage" && !granted ? t("recordingWithdrawn") : t("consentSaved");
     setSummary(settingsStatusMessage(result, success, tErrors));
@@ -102,7 +127,7 @@ export function PrivacyPanel({
               <input
                 type="checkbox"
                 name={consent.policy}
-                checked={consent.decision === "granted"}
+                checked={decisions[consent.policy] === "granted"}
                 onChange={(event) => void handleConsent(policy, event.target.checked)}
               />
               {label}

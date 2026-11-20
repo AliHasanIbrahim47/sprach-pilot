@@ -350,6 +350,8 @@ model DataExport {
 
   expiresAt DateTime? @map("expires_at") @db.Timestamptz(3)
   readyAt   DateTime? @map("ready_at") @db.Timestamptz(3)
+  /// Set after the ready email is queued. Null means the notification can be retried.
+  notifiedAt DateTime? @map("notified_at") @db.Timestamptz(3)
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
 
   @@index([userId], map: "data_exports_user_id_idx")

@@ -1,5 +1,5 @@
 import type { PrivacyOverview } from "@sprachpilot/shared";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -69,10 +69,16 @@ describe("privacy settings", () => {
       ),
     ).toBeTruthy();
 
-    await user.click(
-      screen.getByRole("checkbox", { name: "Store voice recordings to improve the models" }),
-    );
+    const recording = screen.getByRole("checkbox", {
+      name: "Store voice recordings to improve the models",
+    });
+    expect(recording).not.toBeChecked();
+    await user.click(recording);
     expect(onConsent).toHaveBeenCalledWith({ policy: "recording_storage", granted: true });
+    await waitFor(() => expect(recording).toBeChecked());
+    await user.click(recording);
+    expect(onConsent).toHaveBeenLastCalledWith({ policy: "recording_storage", granted: false });
+    await waitFor(() => expect(recording).not.toBeChecked());
 
     const confirm = screen.getByRole("checkbox", {
       name: "I understand my account will be deleted after 7 days",

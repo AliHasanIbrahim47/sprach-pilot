@@ -116,7 +116,11 @@ export function createOAuthService(dependencies: OAuthServiceDependencies): OAut
       throw new UnauthorizedError(AUTH_COPY.oauthFailed);
     }
     if (user.deletionRequestedAt) {
-      await users.clearDeletion(user.id);
+      const cancelled = await users.clearDeletion(user.id, clock());
+      if (!cancelled) {
+        metrics.recordLogin("failure");
+        throw new UnauthorizedError(AUTH_COPY.oauthFailed);
+      }
       onDeletionCancelled?.();
     }
   }

@@ -2893,6 +2893,15 @@
         "parameters": [
           {
             "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "exportId",
+            "in": "path"
+          },
+          {
+            "schema": {
               "type": "string"
             },
             "required": true,

@@ -137,8 +137,11 @@ services:
       - --web.enable-lifecycle
     ports:
       - "9090:9090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./infra/docker/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro,Z
+      - ./infra/docker/observability/gdpr-rules.yml:/etc/prometheus/gdpr-rules.yml:ro,Z
       - prometheus_data:/prometheus
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9090/-/healthy || exit 1"]

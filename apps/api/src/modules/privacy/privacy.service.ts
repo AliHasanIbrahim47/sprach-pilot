@@ -97,6 +97,7 @@ export function createPrivacyService(dependencies: PrivacyServiceDependencies): 
     ipHashSecret,
     webPublicUrl,
   } = dependencies;
+  const withUserGate = createUserGate();
 
   const identityDomain = {
     id: "identity",
@@ -199,10 +200,10 @@ export function createPrivacyService(dependencies: PrivacyServiceDependencies): 
       const purgeAfter = user.purgeAfter ?? new Date(now.getTime() + GDPR_GRACE_MS);
       if (!user.deletionRequestedAt) {
         await users.scheduleDeletion(userId, now, purgeAfter);
-        await sessions.revokeAllForUser({ userId, reason: "revoked", now });
         await gdprQueue.enqueuePurge({ userId }, purgeAfter);
         metrics.recordDeletion("requested");
       }
+      await sessions.revokeAllForUser({ userId, reason: "revoked", now });
       return { purgeAfter: purgeAfter.toISOString() };
     },
 
@@ -252,11 +253,7 @@ export function createPrivacyService(dependencies: PrivacyServiceDependencies): 
     },
 
     async processExportJob(job) {
-      try {
-        await writeExport(job);
-      } catch {
-        await store.markExportFailed(job.exportId);
-      }
+      await writeExport(job);
     },
 
     async processPurgeJob(userId) {
@@ -266,11 +263,7 @@ export function createPrivacyService(dependencies: PrivacyServiceDependencies): 
     async processExports() {
       const jobs = gdprQueue.pullExports();
       for (const job of jobs) {
-        try {
-          await writeExport(job);
-        } catch {
-          await store.markExportFailed(job.exportId);
-        }
+        await writeExport(job);
       }
     },
 
@@ -294,7 +287,11 @@ export function createPrivacyService(dependencies: PrivacyServiceDependencies): 
     locale: UiLocale;
   }): Promise<void> {
     const existing = await store.findExport(job.exportId);
-    if (!existing || existing.status !== "queued") return;
+    if (!existing || existing.status === "failed") return;
+    if (existing.status === "ready") {
+      await deliverReadyExport(job, existing);
+      return;
+    }
     const identity = await identityDomain.exportUser(job.userId);
     if (!identity?.user || identity.user.deletedAt) {
       await store.markExportFailed(job.exportId);
@@ -341,37 +338,67 @@ export function createPrivacyService(dependencies: PrivacyServiceDependencies): 
       tandem: { profile: null, messages: tandem },
       files: [...recordings, ...avatarFiles],
     });
-    await storage.put({
-      key: objectKey,
-      body: zip,
-      contentType: "application/zip",
-      cacheControl: "private, no-store",
+    const published = await withUserGate(user.id, async () => {
+      const current = await users.findById(user.id);
+      if (!current || current.deletedAt) {
+        await storage.delete(objectKey);
+        await store.markExportFailed(job.exportId);
+        return false;
+      }
+      await storage.put({
+        key: objectKey,
+        body: zip,
+        contentType: "application/zip",
+        cacheControl: "private, no-store",
+      });
+      await store.markExportReady(job.exportId, objectKey, expiresAt, now);
+      return true;
     });
-    await store.markExportReady(job.exportId, objectKey, expiresAt, now);
+    if (!published) return;
+    const ready = await store.findExport(job.exportId);
+    if (ready) await deliverReadyExport(job, ready);
+  }
+
+  async function deliverReadyExport(
+    job: { exportId: string; userId: string; email: string; locale: UiLocale },
+    row: { notifiedAt: Date | null; expiresAt: Date | null },
+  ): Promise<void> {
+    if (row.notifiedAt || !row.expiresAt) return;
     const locale = isUiLocale(job.locale) ? job.locale : "en";
     await emailQueue.enqueue({
       to: job.email,
       locale,
       template: "export-ready",
-      url: await downloadUrl(webPublicUrl, locale, job.exportId, user.id, expiresAt, ipHashSecret),
+      url: await downloadUrl(
+        webPublicUrl,
+        locale,
+        job.exportId,
+        job.userId,
+        row.expiresAt,
+        ipHashSecret,
+      ),
     });
+    await store.markExportNotified(job.exportId, clock());
   }
 
   async function purgeUser(userId: string, now: Date): Promise<void> {
-    const user = await users.findById(userId);
-    if (!user) return;
-    if (user.deletedAt) {
-      await deleteStoredObjects(userId, null);
-      return;
-    }
-    if (!user.purgeAfter || user.purgeAfter.getTime() > now.getTime()) return;
-    const overdueMs = now.getTime() - user.purgeAfter.getTime();
-    if (overdueMs > 24 * 60 * 60 * 1000) metrics.recordDeletion("overdue");
-    await recordingsDomain.deleteUser(userId);
-    await tandemDomain.deleteUser(userId);
-    await avatarsDomain.deleteUser(userId);
-    await identityDomain.deleteUser(userId);
-    metrics.recordDeletion("purged");
+    await withUserGate(userId, async () => {
+      const user = await users.findById(userId);
+      if (!user) return;
+      if (user.deletedAt) {
+        await deleteStoredObjects(userId, null);
+        return;
+      }
+      const claimed = await users.claimPurge(userId, now);
+      if (!claimed) return;
+      const overdueMs = user.purgeAfter ? now.getTime() - user.purgeAfter.getTime() : 0;
+      if (overdueMs > 24 * 60 * 60 * 1000) metrics.recordDeletion("overdue");
+      await recordingsDomain.deleteUser(userId);
+      await tandemDomain.deleteUser(userId);
+      await avatarsDomain.deleteUser(userId);
+      await identityDomain.deleteUser(userId);
+      metrics.recordDeletion("purged");
+    });
   }
 
   async function storedFiles(userId: string, avatarUrl: string | null): Promise<ZipEntry[]> {
@@ -432,6 +459,20 @@ async function currentConsents(users: UserRepository, userId: string) {
     decision: row.decision ?? "granted",
     recordedAt: row.acceptedAt.toISOString(),
   }));
+}
+
+function createUserGate(): <T>(userId: string, task: () => Promise<T>) => Promise<T> {
+  const tails = new Map<string, Promise<unknown>>();
+  return async function withUserGate<T>(userId: string, task: () => Promise<T>): Promise<T> {
+    const previous = tails.get(userId) ?? Promise.resolve();
+    const run = previous.then(task, task);
+    tails.set(userId, run);
+    try {
+      return await run;
+    } finally {
+      if (tails.get(userId) === run) tails.delete(userId);
+    }
+  };
 }
 
 async function downloadUrl(

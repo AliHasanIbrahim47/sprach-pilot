@@ -293,11 +293,16 @@ export function createAuthService(dependencies: AuthServiceDependencies): AuthSe
         throw new UnauthorizedError(AUTH_COPY.invalidCredentials);
       }
 
-      await throttle.reset(subjectKey);
       if (activeUser.deletionRequestedAt) {
-        await users.clearDeletion(activeUser.id);
+        const cancelled = await users.clearDeletion(activeUser.id, clock());
+        if (!cancelled) {
+          await throttle.recordFailure(subjectKey);
+          metrics.recordLogin("failure");
+          throw new UnauthorizedError(AUTH_COPY.invalidCredentials);
+        }
         onDeletionCancelled?.();
       }
+      await throttle.reset(subjectKey);
       metrics.recordLogin("success");
       const credentials = await issueCredentials(activeUser, context);
       return {

@@ -7,6 +7,7 @@ export interface ExportRecord {
   status: "queued" | "ready" | "failed";
   objectKey: string | null;
   expiresAt: Date | null;
+  notifiedAt: Date | null;
 }
 
 export interface PrivacyRepository {
@@ -14,6 +15,7 @@ export interface PrivacyRepository {
   findExport(id: string): Promise<ExportRecord | null>;
   latestExport(userId: string): Promise<ExportRecord | null>;
   markExportReady(id: string, objectKey: string, expiresAt: Date, readyAt: Date): Promise<void>;
+  markExportNotified(id: string, notifiedAt: Date): Promise<void>;
   markExportFailed(id: string): Promise<void>;
   recordings(userId: string): Promise<ZipEntry[]>;
   addRecording(userId: string, file: ZipEntry): Promise<void>;
@@ -47,6 +49,7 @@ export function createMemoryPrivacyRepository(): MemoryPrivacyRepository {
         status: "queued",
         objectKey: null,
         expiresAt: null,
+        notifiedAt: null,
       });
     },
     async findExport(id) {
@@ -62,6 +65,11 @@ export function createMemoryPrivacyRepository(): MemoryPrivacyRepository {
       row.status = "ready";
       row.objectKey = objectKey;
       row.expiresAt = expiresAt;
+    },
+    async markExportNotified(id, notifiedAt) {
+      const row = exports.find((item) => item.id === id);
+      if (!row || row.status !== "ready" || row.notifiedAt) return;
+      row.notifiedAt = notifiedAt;
     },
     async markExportFailed(id) {
       const row = exports.find((item) => item.id === id);
@@ -141,6 +149,12 @@ export function createPrismaPrivacyRepository(client: PrismaClient): PrivacyRepo
         data: { status: "ready", objectKey, expiresAt, readyAt },
       });
     },
+    async markExportNotified(id, notifiedAt) {
+      await client.dataExport.updateMany({
+        where: { id, status: "ready", notifiedAt: null },
+        data: { notifiedAt },
+      });
+    },
     async markExportFailed(id) {
       await client.dataExport.updateMany({
         where: { id, status: "queued" },
@@ -203,6 +217,7 @@ function toExport(row: {
   status: string;
   objectKey: string | null;
   expiresAt: Date | null;
+  notifiedAt?: Date | null;
 }): ExportRecord {
   const status = row.status === "ready" || row.status === "failed" ? row.status : "queued";
   return {
@@ -211,5 +226,6 @@ function toExport(row: {
     status,
     objectKey: row.objectKey,
     expiresAt: row.expiresAt,
+    notifiedAt: row.notifiedAt ?? null,
   };
 }

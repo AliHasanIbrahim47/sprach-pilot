@@ -76,29 +76,34 @@ describe("gdpr deletion verification", () => {
 
     now = new Date(START.getTime() + 8 * 24 * 60 * 60 * 1000);
     await privacy.processDuePurges();
-    await privacy.processPurgeJob(created.id);
+    await expectPurged();
 
-    const purged = await users.findById(created.id);
-    expect(purged?.email).toBe(anonymizedEmail(created.id));
-    expect(purged?.displayName).toBe(DELETED_USER_LABEL);
-    expect(purged?.passwordHash).toBeNull();
-    expect(purged?.deletedAt).toEqual(now);
-    expect(await store.recordings(created.id)).toEqual([]);
-    expect(await store.auditIps(created.id)).toEqual([]);
-    expect(await storage.list(`avatars/${created.id}/`)).toEqual([]);
-    expect(await store.messages()).toEqual([
-      {
-        id: "message-1",
-        authorId: created.id,
-        authorLabel: DELETED_USER_LABEL,
-        body: "Hallo, ich suche eine Wohnung.",
-      },
-      {
-        id: "message-2",
-        authorId: "partner",
-        authorLabel: "Bea",
-        body: "Gerne.",
-      },
-    ]);
+    await privacy.processPurgeJob(created.id);
+    await expectPurged();
+
+    async function expectPurged(): Promise<void> {
+      const purged = await users.findById(created.id);
+      expect(purged?.email).toBe(anonymizedEmail(created.id));
+      expect(purged?.displayName).toBe(DELETED_USER_LABEL);
+      expect(purged?.passwordHash).toBeNull();
+      expect(purged?.deletedAt).toEqual(now);
+      expect(await store.recordings(created.id)).toEqual([]);
+      expect(await store.auditIps(created.id)).toEqual([]);
+      expect(await storage.list(`avatars/${created.id}/`)).toEqual([]);
+      expect(await store.messages()).toEqual([
+        {
+          id: "message-1",
+          authorId: created.id,
+          authorLabel: DELETED_USER_LABEL,
+          body: "Hallo, ich suche eine Wohnung.",
+        },
+        {
+          id: "message-2",
+          authorId: "partner",
+          authorLabel: "Bea",
+          body: "Gerne.",
+        },
+      ]);
+    }
   });
 });
