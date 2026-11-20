@@ -155,6 +155,17 @@ export function createPrivacyService(dependencies: PrivacyServiceDependencies): 
       const user = await requireActive(users, userId);
       const consents = await currentConsents(users, userId);
       const latest = await store.latestExport(userId);
+      const link =
+        latest?.status === "ready" && latest.expiresAt && latest.expiresAt > clock()
+          ? await downloadUrl(
+              webPublicUrl,
+              user.uiLocale,
+              latest.id,
+              latest.userId,
+              latest.expiresAt,
+              ipHashSecret,
+            )
+          : null;
       return {
         consents,
         deletion: user.purgeAfter ? { purgeAfter: user.purgeAfter.toISOString() } : null,
@@ -162,17 +173,7 @@ export function createPrivacyService(dependencies: PrivacyServiceDependencies): 
           ? {
               id: latest.id,
               status: latest.status,
-              downloadUrl:
-                latest.status === "ready" && latest.expiresAt && latest.expiresAt > clock()
-                  ? downloadUrl(
-                      webPublicUrl,
-                      user.uiLocale,
-                      latest.id,
-                      latest.userId,
-                      latest.expiresAt,
-                      ipHashSecret,
-                    )
-                  : null,
+              downloadUrl: link,
             }
           : null,
       };
@@ -237,7 +238,7 @@ export function createPrivacyService(dependencies: PrivacyServiceDependencies): 
       if (!row || row.status !== "ready" || !row.objectKey || !row.expiresAt) {
         throw new NotFoundError("Export is not ready.");
       }
-      const valid = verifyExportToken({
+      const valid = await verifyExportToken({
         secret: ipHashSecret,
         exportId,
         userId: row.userId,
@@ -352,7 +353,7 @@ export function createPrivacyService(dependencies: PrivacyServiceDependencies): 
       to: job.email,
       locale,
       template: "export-ready",
-      url: downloadUrl(webPublicUrl, locale, job.exportId, user.id, expiresAt, ipHashSecret),
+      url: await downloadUrl(webPublicUrl, locale, job.exportId, user.id, expiresAt, ipHashSecret),
     });
   }
 
@@ -433,15 +434,15 @@ async function currentConsents(users: UserRepository, userId: string) {
   }));
 }
 
-function downloadUrl(
+async function downloadUrl(
   webPublicUrl: string,
   locale: string,
   exportId: string,
   userId: string,
   expiresAt: Date,
   secret: string,
-): string {
-  const token = signExportToken({ secret, exportId, userId, expiresAt });
+): Promise<string> {
+  const token = await signExportToken({ secret, exportId, userId, expiresAt });
   const url = new URL(`/${locale}/privacy/download`, webPublicUrl);
   url.searchParams.set("exportId", exportId);
   url.searchParams.set("token", token);

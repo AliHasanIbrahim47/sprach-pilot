@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  applySetCookies,
   decideSessionGate,
   isProtectedAppPath,
   loginRedirectUrl,
@@ -49,6 +50,15 @@ describe("session gate", () => {
         hasRefreshCookie: true,
       }),
     ).toBe("continue");
+  });
+
+  it("replaces rotated auth cookies for the rest of the same request", () => {
+    expect(
+      applySetCookies("sp_access=old; theme=dark; sp_refresh=keep", [
+        "sp_access=new.token; Max-Age=900; Path=/; HttpOnly",
+        "sp_refresh=rotated; Max-Age=1209600; Path=/; HttpOnly",
+      ]),
+    ).toBe("sp_access=new.token; theme=dark; sp_refresh=rotated");
   });
 
   it("rejects open redirects", () => {

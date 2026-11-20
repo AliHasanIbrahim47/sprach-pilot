@@ -56,6 +56,29 @@ export function loginRedirectUrl(requestUrl: URL): URL {
   return target;
 }
 
+/**
+ * Cookie header for the rest of this request after the API rotates auth cookies.
+ * The browser only sees the new cookies on the response, so the page render must be told too.
+ */
+export function applySetCookies(current: string | null, setCookies: readonly string[]): string {
+  const jar = new Map<string, string>();
+  if (current) {
+    for (const part of current.split(";")) {
+      const trimmed = part.trim();
+      const separator = trimmed.indexOf("=");
+      if (separator <= 0) continue;
+      jar.set(trimmed.slice(0, separator), trimmed.slice(separator + 1));
+    }
+  }
+  for (const header of setCookies) {
+    const pair = header.split(";")[0]?.trim() ?? "";
+    const separator = pair.indexOf("=");
+    if (separator <= 0) continue;
+    jar.set(pair.slice(0, separator), pair.slice(separator + 1));
+  }
+  return [...jar.entries()].map(([name, value]) => `${name}=${value}`).join("; ");
+}
+
 /** Relative in-app path safe to use as a post-login redirect. */
 export function safeNextPath(value: string | null | undefined): string | null {
   if (!value || !value.startsWith("/") || value.startsWith("//") || value.startsWith("/\\")) {
