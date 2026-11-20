@@ -131,6 +131,16 @@ export {
   emailJobSchema,
   emailTemplateSchema,
 } from "./jobs/email.js";
+export type { GdprExportJob, GdprPurgeJob } from "./jobs/gdpr.js";
+export {
+  GDPR_EXPORT_JOB_NAME,
+  GDPR_JOB_ATTEMPTS,
+  GDPR_JOB_BACKOFF_MS,
+  GDPR_PURGE_JOB_NAME,
+  GDPR_QUEUE_NAME,
+  gdprExportJobSchema,
+  gdprPurgeJobSchema,
+} from "./jobs/gdpr.js";
 export type { UiLocale } from "./locale.js";
 export { isUiLocale, UI_LOCALES, uiLocaleSchema } from "./locale.js";
 export type {
@@ -182,6 +192,36 @@ export {
   DEFAULT_PAGE_LIMIT,
   MAX_PAGE_LIMIT,
 } from "./pagination/cursor.js";
+export {
+  anonymizedEmail,
+  DELETED_USER_LABEL,
+  GDPR_GRACE_MS,
+  isOptionalConsentPolicy,
+  OPTIONAL_CONSENT_POLICIES,
+  PII_COLUMNS,
+  PRIVACY_CONSENT_VERSION,
+  REQUIRED_CONSENT_POLICIES,
+  REQUIRED_PRIVACY_DOMAINS,
+} from "./privacy/constants.js";
+export type { PrivacyConsent, PrivacyOverview, UpdateConsentBody } from "./privacy/contracts.js";
+export {
+  consentDecisionSchema,
+  deletionAcceptedSchema,
+  exportAcceptedSchema,
+  privacyConsentSchema,
+  privacyOverviewSchema,
+  updateConsentBodySchema,
+} from "./privacy/contracts.js";
+export type { PrivacyExportData, PurgeIdentity, TandemMessage } from "./privacy/export-data.js";
+export {
+  anonymizeTandemMessages,
+  buildExportZip,
+  exportEntries,
+  purgeIdentity,
+} from "./privacy/export-data.js";
+export { signExportToken, verifyExportToken } from "./privacy/token.js";
+export type { ZipEntry } from "./privacy/zip.js";
+export { unzipStore, zipStore } from "./privacy/zip.js";
 export type {
   EmailChangeBody,
   EmailChangeConfirmBody,

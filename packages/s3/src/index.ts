@@ -1,6 +1,7 @@
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  ListObjectsV2Command,
   NoSuchKey,
   PutObjectCommand,
   S3Client,
@@ -30,6 +31,7 @@ export interface S3Bucket {
   }): Promise<void>;
   get(key: string): Promise<StoredObject | null>;
   delete(key: string): Promise<void>;
+  list(prefix: string): Promise<string[]>;
 }
 
 /** One S3 client for the API upload and the worker that publishes avatars. */
@@ -75,6 +77,24 @@ export function createS3Bucket(location: S3Location): S3Bucket {
     },
     async delete(key) {
       await client.send(new DeleteObjectCommand({ Bucket: location.bucket, Key: key }));
+    },
+    async list(prefix) {
+      const keys: string[] = [];
+      let token: string | undefined;
+      do {
+        const result = await client.send(
+          new ListObjectsV2Command({
+            Bucket: location.bucket,
+            Prefix: prefix,
+            ContinuationToken: token,
+          }),
+        );
+        for (const item of result.Contents ?? []) {
+          if (item.Key) keys.push(item.Key);
+        }
+        token = result.IsTruncated ? result.NextContinuationToken : undefined;
+      } while (token);
+      return keys;
     },
   };
 }

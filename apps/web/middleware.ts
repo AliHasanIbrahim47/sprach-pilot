@@ -4,7 +4,12 @@ import { type NextRequest, NextResponse } from "next/server";
 import createMiddleware from "next-intl/middleware";
 
 import { routing } from "./i18n/routing";
-import { decideSessionGate, isProtectedAppPath, loginRedirectUrl } from "./lib/session-gate";
+import {
+  applySetCookies,
+  decideSessionGate,
+  isProtectedAppPath,
+  loginRedirectUrl,
+} from "./lib/session-gate";
 
 const handleI18n = createMiddleware(routing);
 
@@ -42,16 +47,32 @@ export default async function middleware(request: NextRequest): Promise<NextResp
 
   if (gate === "refresh" && refreshToken) {
     const rotated = await refreshSession(refreshToken, apiBaseUrl);
-    if (rotated) {
-      for (const cookie of rotated) i18nResponse.headers.append("set-cookie", cookie);
-      return i18nResponse;
-    }
+    if (rotated) return continueWithRefreshedCookies(request, i18nResponse, rotated);
   }
 
   const redirectResponse = NextResponse.redirect(loginRedirectUrl(request.nextUrl));
   redirectResponse.cookies.delete(ACCESS_TOKEN_COOKIE);
   redirectResponse.cookies.delete(REFRESH_TOKEN_COOKIE);
   return redirectResponse;
+}
+
+function continueWithRefreshedCookies(
+  request: NextRequest,
+  i18nResponse: NextResponse,
+  rotated: readonly string[],
+): NextResponse {
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("cookie", applySetCookies(request.headers.get("cookie"), rotated));
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  const rewrite = i18nResponse.headers.get("x-middleware-rewrite");
+  if (rewrite) response.headers.set("x-middleware-rewrite", rewrite);
+  const intlCookies =
+    typeof i18nResponse.headers.getSetCookie === "function"
+      ? i18nResponse.headers.getSetCookie()
+      : [];
+  for (const cookie of intlCookies) response.headers.append("set-cookie", cookie);
+  for (const cookie of rotated) response.headers.append("set-cookie", cookie);
+  return response;
 }
 
 async function accessTokenIsCurrent(token: string, apiBaseUrl: string): Promise<boolean> {

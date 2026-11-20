@@ -123,6 +123,29 @@ export function ResetEmail(props: { locale: UiLocale; url: string }) {
   );
 }
 
+export function ExportEmail(props: { locale: UiLocale; url: string }) {
+  const copy = emailCopy(props.locale);
+  return (
+    <EmailLayout locale={props.locale} preview={copy.exportPreview}>
+      <Heading className="email-heading" style={headingStyle}>
+        {copy.exportHeading}
+      </Heading>
+      <Text className="email-text" style={textStyle}>
+        {copy.exportBody}
+      </Text>
+      <Button className="email-button" href={props.url} style={buttonStyle}>
+        {copy.exportAction}
+      </Button>
+      <Text className="email-muted" style={mutedStyle}>
+        {copy.fallback}
+      </Text>
+      <Text className="email-muted" style={mutedStyle}>
+        {props.url}
+      </Text>
+    </EmailLayout>
+  );
+}
+
 export function NoticeEmail(props: { locale: UiLocale }) {
   const copy = emailCopy(props.locale);
   return (

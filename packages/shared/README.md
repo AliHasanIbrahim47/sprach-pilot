@@ -10,6 +10,7 @@ Cross-cutting TypeScript helpers and **Zod contracts** shared by API and web (SP
 | `auth/register`     | `POST /v1/auth/register` body (auth implementation is SP-012) |
 | `errors/*`          | RFC 9457 Problem Details + domain error classes (SP-009)      |
 | `pagination/cursor` | Cursor pagination query/page helpers (`limit` max 100)        |
+| `privacy/*`         | GDPR export, consent, and deletion contracts (SP-019)         |
 
 Import from the package root so the browser never pulls OpenAPI generator code:
 

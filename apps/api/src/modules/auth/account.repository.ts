@@ -19,6 +19,7 @@ export interface AccountRepository {
   }): Promise<LinkedAccountRecord>;
   unlink(userId: string, provider: string): Promise<boolean>;
   listProviders(userId: string): Promise<readonly string[]>;
+  listLinked(userId: string): Promise<readonly LinkedAccountRecord[]>;
 }
 
 export interface MemoryAccountRepository extends AccountRepository {
@@ -76,6 +77,11 @@ export function createAccountRepository(client: PrismaClient = prisma): AccountR
       });
       return rows.map((row) => row.provider);
     },
+
+    async listLinked(userId) {
+      const rows = await client.account.findMany({ where: { userId } });
+      return rows.map(toRecord);
+    },
   };
 }
 
@@ -120,6 +126,10 @@ export function createMemoryAccountRepository(): MemoryAccountRepository {
 
     async listProviders(userId) {
       return rows.filter((row) => row.userId === userId).map((row) => row.provider);
+    },
+
+    async listLinked(userId) {
+      return rows.filter((row) => row.userId === userId).map((row) => ({ ...row }));
     },
 
     records() {

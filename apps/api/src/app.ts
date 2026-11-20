@@ -36,6 +36,7 @@ export function createApp(container: AppContainer, options: CreateAppOptions = {
   v1.use(container.adminRouter);
   v1.use(container.onboardingRouter);
   v1.use(container.settingsRouter);
+  v1.use(container.privacyRouter);
   options.registerV1?.(v1);
   app.use("/v1", v1);
   app.use(container.metricsRouter);

@@ -72,6 +72,8 @@ export interface AuthServiceDependencies {
   ipHashSecret: string;
   registrationEnabled: boolean;
   logger: AuthLogger;
+  /** Called when a login cancels a scheduled account deletion. */
+  onDeletionCancelled?: () => void;
 }
 
 export interface AuthRequestContext {
@@ -153,6 +155,7 @@ export function createAuthService(dependencies: AuthServiceDependencies): AuthSe
     clock,
     ipHashSecret,
     logger,
+    onDeletionCancelled,
   } = dependencies;
 
   async function issueCredentials(
@@ -274,8 +277,13 @@ export function createAuthService(dependencies: AuthServiceDependencies): AuthSe
         });
       }
 
+      const now = clock();
       const user = await users.findByEmail(email);
-      const activeUser = user && user.deletedAt === null ? user : null;
+      const purgeDue =
+        user?.purgeAfter !== null &&
+        user?.purgeAfter !== undefined &&
+        user.purgeAfter.getTime() <= now.getTime();
+      const activeUser = user && user.deletedAt === null && !purgeDue ? user : null;
       const passwordHash = activeUser?.passwordHash ?? (await hasher.dummyHash());
       const passwordOk = await hasher.verify(passwordHash, input.password);
 
@@ -285,6 +293,15 @@ export function createAuthService(dependencies: AuthServiceDependencies): AuthSe
         throw new UnauthorizedError(AUTH_COPY.invalidCredentials);
       }
 
+      if (activeUser.deletionRequestedAt) {
+        const cancelled = await users.clearDeletion(activeUser.id, clock());
+        if (!cancelled) {
+          await throttle.recordFailure(subjectKey);
+          metrics.recordLogin("failure");
+          throw new UnauthorizedError(AUTH_COPY.invalidCredentials);
+        }
+        onDeletionCancelled?.();
+      }
       await throttle.reset(subjectKey);
       metrics.recordLogin("success");
       const credentials = await issueCredentials(activeUser, context);
@@ -332,7 +349,11 @@ export function createAuthService(dependencies: AuthServiceDependencies): AuthSe
       }
 
       const user = await users.findById(outcome.session.userId);
-      if (!user || user.deletedAt !== null) {
+      const refreshPurgeDue =
+        user?.purgeAfter !== null &&
+        user?.purgeAfter !== undefined &&
+        user.purgeAfter.getTime() <= now.getTime();
+      if (!user || user.deletedAt !== null || refreshPurgeDue || user.deletionRequestedAt) {
         await sessions.revokeFamily({
           familyId: outcome.session.familyId,
           reason: "revoked",

@@ -74,6 +74,23 @@ import {
 import { createOnboardingRouter } from "./modules/onboarding/onboarding.routes.js";
 import { createOnboardingService } from "./modules/onboarding/onboarding.service.js";
 import {
+  createBullGdprQueue,
+  createMemoryGdprQueue,
+  type GdprQueue,
+} from "./modules/privacy/gdpr-queue.js";
+import {
+  createPrivacyController,
+  type PrivacyController,
+} from "./modules/privacy/privacy.controller.js";
+import { createPrivacyMetrics, type PrivacyMetrics } from "./modules/privacy/privacy.metrics.js";
+import {
+  createMemoryPrivacyRepository,
+  createPrismaPrivacyRepository,
+  type PrivacyRepository,
+} from "./modules/privacy/privacy.repository.js";
+import { createPrivacyRouter } from "./modules/privacy/privacy.routes.js";
+import { createPrivacyService, type PrivacyService } from "./modules/privacy/privacy.service.js";
+import {
   type AvatarQueue,
   createBullAvatarQueue,
   createMemoryAvatarQueue,
@@ -106,6 +123,9 @@ export interface AppContainer {
   onboardingController: OnboardingController;
   settingsRouter: Router;
   settingsController: SettingsController;
+  privacyRouter: Router;
+  privacyController: PrivacyController;
+  processPrivacyJobs(): Promise<void>;
   requireAuth: RequestHandler;
   requireVerifiedEmail: RequestHandler;
   jwksRouter: Router;
@@ -144,11 +164,19 @@ export interface SettingsOverrides {
   clock?: () => Date;
 }
 
+export interface PrivacyOverrides {
+  store?: PrivacyRepository;
+  queue?: GdprQueue;
+  metrics?: PrivacyMetrics;
+  clock?: () => Date;
+}
+
 export interface ContainerOverrides {
   dependencyChecks?: DependencyHealthPort[];
   auth?: AuthOverrides;
   onboarding?: OnboardingOverrides;
   settings?: SettingsOverrides;
+  privacy?: PrivacyOverrides;
 }
 
 /**
@@ -170,6 +198,7 @@ export function createContainer(
 
   const metrics = overrides.auth?.metrics ?? createAuthMetrics();
   const onboardingMetrics = overrides.onboarding?.metrics ?? createOnboardingMetrics();
+  const privacyMetrics = overrides.privacy?.metrics ?? createPrivacyMetrics();
   const redisPorts = resolveRedisPorts(overrides.auth, config);
   const tokens =
     overrides.auth?.tokens ??
@@ -216,6 +245,9 @@ export function createContainer(
     ipHashSecret: config.ipHashSecret,
     registrationEnabled: config.features.registrationEnabled,
     logger: authLogger,
+    onDeletionCancelled() {
+      privacyMetrics.recordDeletion("cancelled");
+    },
   });
 
   const googleCredentials = config.oauth.google;
@@ -240,6 +272,9 @@ export function createContainer(
     clock,
     ipHashSecret: config.ipHashSecret,
     logger: authLogger,
+    onDeletionCancelled() {
+      privacyMetrics.recordDeletion("cancelled");
+    },
   });
 
   const authController = createAuthController(
@@ -265,11 +300,12 @@ export function createContainer(
   );
   const onboardingRouter = createOnboardingRouter(onboardingController, requireAuth);
   const settingsMetrics = createSettingsMetrics();
+  const settingsStore = overrides.settings?.store ?? createSettingsRepository();
   const settingsController = createSettingsController(
     createSettingsService({
       users,
       sessions,
-      store: overrides.settings?.store ?? createSettingsRepository(),
+      store: settingsStore,
       hasher,
       emailTokens,
       emailCodec,
@@ -284,9 +320,34 @@ export function createContainer(
     settingsMetrics,
   );
   const settingsRouter = createSettingsRouter(settingsController, requireAuth);
+  const privacyClock = overrides.privacy?.clock ?? overrides.settings?.clock ?? clock;
+  const privacyStore =
+    overrides.privacy?.store ??
+    (useMemoryPorts ? createMemoryPrivacyRepository() : createPrismaPrivacyRepository(prisma));
+  const gdprTransport = resolveGdprQueue(overrides.privacy?.queue, useMemoryPorts, config.redisUrl);
+  const privacyService: PrivacyService = createPrivacyService({
+    users,
+    accounts,
+    sessions,
+    settings: settingsStore,
+    store: privacyStore,
+    storage,
+    emailQueue: emailTransport.emailQueue,
+    gdprQueue: gdprTransport.queue,
+    metrics: privacyMetrics,
+    clock: privacyClock,
+    ipHashSecret: config.ipHashSecret,
+    webPublicUrl: config.webPublicUrl,
+  });
+  const privacyController = createPrivacyController(
+    privacyService,
+    (req) => resolveClientIp(req, config.internalApiSecret),
+    { secure: true, domain: config.cookieDomain },
+  );
+  const privacyRouter = createPrivacyRouter(privacyController, requireAuth);
   const metricsRouter = createMetricsRouter({
     renderPrometheus() {
-      return `${metrics.renderPrometheus()}${onboardingMetrics.renderPrometheus()}${settingsMetrics.renderPrometheus()}`;
+      return `${metrics.renderPrometheus()}${onboardingMetrics.renderPrometheus()}${settingsMetrics.renderPrometheus()}${privacyMetrics.renderPrometheus()}`;
     },
   });
 
@@ -308,6 +369,11 @@ export function createContainer(
     onboardingController,
     settingsRouter,
     settingsController,
+    privacyRouter,
+    privacyController,
+    processPrivacyJobs() {
+      return privacyService.processExports().then(() => privacyService.processDuePurges());
+    },
     requireAuth,
     requireVerifiedEmail: createRequireVerifiedEmail(users),
     jwksRouter,
@@ -318,6 +384,8 @@ export function createContainer(
       emailTransport.connection?.disconnect();
       await avatarTransport.queue.close();
       avatarTransport.connection?.disconnect();
+      await gdprTransport.queue.close();
+      gdprTransport.connection?.disconnect();
       redisPorts.redis?.disconnect();
       await prisma.$disconnect();
     },
@@ -342,6 +410,17 @@ function resolveAvatarQueue(
   if (memory) return { queue: createMemoryAvatarQueue(), connection: undefined };
   const connection = createQueueConnection(redisUrl);
   return { queue: createBullAvatarQueue(connection), connection };
+}
+
+function resolveGdprQueue(
+  override: GdprQueue | undefined,
+  memory: boolean,
+  redisUrl: string,
+): { queue: GdprQueue; connection: Redis | undefined } {
+  if (override) return { queue: override, connection: undefined };
+  if (memory) return { queue: createMemoryGdprQueue(), connection: undefined };
+  const connection = createQueueConnection(redisUrl);
+  return { queue: createBullGdprQueue(connection), connection };
 }
 
 function createQueueConnection(redisUrl: string): Redis {
