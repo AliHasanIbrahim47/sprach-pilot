@@ -1,5 +1,5 @@
-import { createS3Bucket, type S3Location } from "@sprachpilot/s3";
-import { publicObjectUrl, ValidationError } from "@sprachpilot/shared";
+import { createS3Bucket } from "@sprachpilot/s3";
+import { AVATAR_PRIVATE_PREFIX, AVATAR_PUBLIC_PREFIX, ValidationError } from "@sprachpilot/shared";
 
 import type { ApiConfig } from "../../config.js";
 
@@ -22,8 +22,10 @@ export interface ObjectStorage {
 }
 
 /** Avatars and GDPR archives. Other prefixes are rejected. */
-const OBJECT_KEY =
-  /^(?:avatars|private\/avatars|privacy\/exports)\/[A-Za-z0-9][A-Za-z0-9._/-]{0,220}$/;
+const OBJECT_PREFIXES = [AVATAR_PUBLIC_PREFIX, AVATAR_PRIVATE_PREFIX, "privacy/exports"] as const;
+const OBJECT_KEY = new RegExp(
+  `^(?:${OBJECT_PREFIXES.map(escapeRegExp).join("|")})/[A-Za-z0-9][A-Za-z0-9._/-]{0,220}$`,
+);
 
 export function createMemoryObjectStorage(): ObjectStorage {
   const objects = new Map<string, StoredObject>();
@@ -73,22 +75,12 @@ export function createS3ObjectStorage(config: ApiConfig): ObjectStorage {
   };
 }
 
-export function avatarPublicUrl(storage: S3Location, key: string): string {
-  return publicObjectUrl(storage, key);
-}
-
 function assertObjectKey(key: string): void {
   if (!OBJECT_KEY.test(key) || key.includes("..")) {
     throw new ValidationError({ detail: "Invalid object location." });
   }
 }
 
-/** Object key embedded in a public avatar URL, when the URL points at this bucket layout. */
-export function keyFromAvatarUrl(avatarUrl: string | null): string | null {
-  if (!avatarUrl) return null;
-  const marker = "/avatars/";
-  const index = avatarUrl.lastIndexOf(marker);
-  if (index === -1) return null;
-  const key = `avatars/${decodeURIComponent(avatarUrl.slice(index + marker.length))}`;
-  return OBJECT_KEY.test(key) && !key.includes("..") ? key : null;
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

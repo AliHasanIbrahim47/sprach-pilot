@@ -162,7 +162,11 @@ async function startWorker(): Promise<void> {
     createAvatarProcessor({
       storage: createS3AvatarStorage(config.s3),
       async saveAvatarUrl(userId, avatarUrl) {
-        await prisma.profile.update({ where: { userId }, data: { avatarUrl } });
+        const updated = await prisma.profile.updateMany({
+          where: { userId, deletedAt: null },
+          data: { avatarUrl },
+        });
+        return updated.count > 0;
       },
     }),
     { connection: avatarConnection, concurrency: 2 },

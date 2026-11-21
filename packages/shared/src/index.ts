@@ -123,6 +123,14 @@ export {
   avatarJobSchema,
   MAX_AVATAR_BYTES,
 } from "./jobs/avatar.js";
+export {
+  AVATAR_PRIVATE_PREFIX,
+  AVATAR_PUBLIC_PREFIX,
+  avatarKeyFromUrl,
+  avatarPrefixes,
+  avatarPublishedKey,
+  avatarSourceKey,
+} from "./jobs/avatar-layout.js";
 export type { EmailJob, EmailTemplate } from "./jobs/email.js";
 export {
   EMAIL_JOB_ATTEMPTS,

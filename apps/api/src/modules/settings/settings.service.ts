@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import {
   AUTH_COPY,
   type AvatarJob,
+  avatarSourceKey,
   type CityPoint,
   clockToMinute,
   ConflictError,
@@ -300,7 +301,7 @@ export function createSettingsService(dependencies: SettingsServiceDependencies)
       if (bytes.length === 0 || bytes.length > MAX_AVATAR_BYTES || !isAvatarImage(bytes)) {
         throw invalidAvatar();
       }
-      const sourceKey = `private/avatars/${userId}/${randomUUID()}`;
+      const sourceKey = avatarSourceKey(userId, randomUUID());
       await storage.put({
         key: sourceKey,
         body: bytes,

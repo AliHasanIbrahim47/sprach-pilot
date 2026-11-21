@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 
 import {
+  avatarKeyFromUrl,
+  avatarPrefixes,
   buildExportZip,
   defaultNotificationPreferences,
   GDPR_GRACE_MS,
@@ -23,14 +25,14 @@ import type { UserRepository } from "../auth/auth.repository.js";
 import { hashIp } from "../auth/ip-hash.js";
 import type { SessionRepository } from "../auth/session.repository.js";
 import type { EmailQueue } from "../email/email-queue.js";
-import { keyFromAvatarUrl, type ObjectStorage } from "../settings/object-storage.js";
+import type { ObjectStorage } from "../settings/object-storage.js";
 import type { SettingsRepository } from "../settings/settings.repository.js";
 import type { GdprQueue } from "./gdpr-queue.js";
 import type { PrivacyMetrics } from "./privacy.metrics.js";
 import type { PrivacyRepository } from "./privacy.repository.js";
 import { assertPrivacyDomains } from "./privacy-registry.js";
 
-const STORAGE_PREFIXES = ["avatars/", "private/avatars/", "privacy/exports/"] as const;
+const EXPORT_PREFIX = "privacy/exports/";
 
 export interface PrivacyService {
   overview(userId: string): Promise<{
@@ -423,10 +425,11 @@ export function createPrivacyService(dependencies: PrivacyServiceDependencies): 
 
   async function objectKeysFor(userId: string, avatarUrl: string | null): Promise<string[]> {
     const keys: string[] = [];
-    for (const prefix of STORAGE_PREFIXES) {
-      keys.push(...(await storage.list(`${prefix}${userId}/`)));
+    for (const prefix of avatarPrefixes(userId)) {
+      keys.push(...(await storage.list(prefix)));
     }
-    const avatarKey = keyFromAvatarUrl(avatarUrl);
+    keys.push(...(await storage.list(`${EXPORT_PREFIX}${userId}/`)));
+    const avatarKey = avatarKeyFromUrl(avatarUrl);
     if (avatarKey) keys.push(avatarKey);
     return keys;
   }
