@@ -461,6 +461,7 @@ export function OnboardingWizard({
           <p className="text-muted-foreground text-sm">{t("cityPrivacy")}</p>
           <CityPicker
             selectedId={selectedCity?.id ?? null}
+            selectedLabel={selectedCity?.name ?? null}
             onSearch={onSearchCities}
             onSelect={setSelectedCity}
           />
