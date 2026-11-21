@@ -9,13 +9,19 @@ import { Button } from "@/components/ui/button";
 import { Link, useRouter } from "@/i18n/navigation";
 import { linkGoogleAccount } from "@/lib/auth-actions";
 import { type AuthFieldErrors } from "@/lib/auth-field-errors";
+import { postSignInPath } from "@/lib/return-path";
 
 interface LinkGoogleFormProps {
   linkToken: string;
   email: string;
+  returnTo?: string | null;
 }
 
-export function LinkGoogleForm({ linkToken, email }: LinkGoogleFormProps): React.JSX.Element {
+export function LinkGoogleForm({
+  linkToken,
+  email,
+  returnTo = null,
+}: LinkGoogleFormProps): React.JSX.Element {
   const t = useTranslations("Auth");
   const router = useRouter();
   const [fieldErrors, setFieldErrors] = useState<AuthFieldErrors>({});
@@ -43,7 +49,12 @@ export function LinkGoogleForm({ linkToken, email }: LinkGoogleFormProps): React
         setSummary(summaryFor(result.code, t));
         return;
       }
-      router.replace(result.needsOnboarding ? "/onboarding" : "/dashboard");
+      router.replace(
+        postSignInPath({
+          needsOnboarding: result.needsOnboarding === true,
+          returnTo,
+        }),
+      );
     } finally {
       setIsSubmitting(false);
     }

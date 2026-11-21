@@ -1,7 +1,7 @@
+import { safeReturnPath } from "@sprachpilot/shared";
 import { NextResponse } from "next/server";
 
 import { serverConfig } from "@/lib/server-config";
-import { safeNextPath } from "@/lib/session-gate";
 
 export function GET(request: Request): NextResponse {
   if (!serverConfig.features.googleOAuthEnabled) {
@@ -10,7 +10,7 @@ export function GET(request: Request): NextResponse {
 
   const incoming = new URL(request.url);
   const locale = incoming.searchParams.get("locale")?.trim() || "en";
-  const returnTo = safeNextPath(incoming.searchParams.get("returnTo"));
+  const returnTo = safeReturnPath(incoming.searchParams.get("returnTo"));
 
   const target = new URL("/v1/auth/oauth/google", serverConfig.apiBaseUrl);
   target.searchParams.set("locale", locale);

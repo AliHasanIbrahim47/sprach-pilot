@@ -27,6 +27,7 @@ export const oauthAuthenticatedResponseSchema = z
     status: z.literal("authenticated"),
     needsOnboarding: z.boolean(),
     locale: z.string().min(2).max(8),
+    returnTo: z.string().min(1).max(2048).nullable(),
     user: sessionUserSchema,
   })
   .meta({ id: "OAuthAuthenticatedResponse" });
@@ -39,6 +40,7 @@ export const oauthLinkRequiredResponseSchema = z
     linkToken: z.string().min(32).max(256),
     email: z.string().email().max(320),
     locale: z.string().min(2).max(8),
+    returnTo: z.string().min(1).max(2048).nullable(),
   })
   .meta({ id: "OAuthLinkRequiredResponse" });
 

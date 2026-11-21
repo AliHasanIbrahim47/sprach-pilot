@@ -28,16 +28,19 @@ export function isWithinQuietHours(input: {
 /**
  * Review, event, match, and product notices are non-critical.
  * Quiet hours hold every one of them. A switch that is off stays off.
+ * Product news also stays held until product-email consent is granted.
  */
 export function notificationIsAllowed(input: {
   category: NotificationCategory;
   enabled: boolean;
+  productEmailsGranted: boolean;
   quietHours: QuietHoursWindow;
   timeZone: string;
   now: Date;
 }): boolean {
   if (!input.enabled) return false;
   if (!NOTIFICATION_CATEGORIES.includes(input.category)) return false;
+  if (input.category === "product_news" && !input.productEmailsGranted) return false;
   if (!input.quietHours.enabled) return true;
   return !isWithinQuietHours({
     now: input.now,

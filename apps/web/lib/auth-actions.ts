@@ -47,8 +47,10 @@ export async function registerAccount(input: RegisterBody): Promise<AuthActionRe
       headers: await requestHeaders(),
       body: JSON.stringify(parsed.data),
       forwardCookies: false,
+      applyAuthCookies: true,
     });
-    return { ok: true, intent: "register" };
+    const signedIn = (await cookies()).get(ACCESS_TOKEN_COOKIE)?.value;
+    return { ok: true, intent: "register", needsOnboarding: Boolean(signedIn) };
   } catch (error) {
     return mapAuthError(error);
   }

@@ -1,4 +1,5 @@
-import { AVATAR_CACHE_CONTROL } from "@sprachpilot/shared";
+import { AVATAR_CACHE_CONTROL, avatarPublishedKey, avatarSourceKey } from "@sprachpilot/shared";
+import { UnrecoverableError } from "bullmq";
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 
@@ -28,8 +29,9 @@ describe("avatar processing", () => {
       endpoint: "http://localhost:9000",
       bucket: "sprachpilot-dev",
     });
+    const sourceKey = avatarSourceKey("user-1", "source");
     await storage.put({
-      key: "avatars/incoming/user-1/source",
+      key: sourceKey,
       body: withGps,
       contentType: "image/jpeg",
       cacheControl: "private, no-store",
@@ -40,10 +42,11 @@ describe("avatar processing", () => {
       storage,
       async saveAvatarUrl(userId, avatarUrl) {
         saved.push({ userId, avatarUrl });
+        return true;
       },
-    })({ data: { userId: "user-1", sourceKey: "avatars/incoming/user-1/source" } });
+    })({ data: { userId: "user-1", sourceKey } });
 
-    expect(storage.objects().has("avatars/incoming/user-1/source")).toBe(false);
+    expect(storage.objects().has(sourceKey)).toBe(false);
     const stored = [...storage.objects().values()][0];
     expect(stored?.contentType).toBe("image/webp");
     expect(stored?.cacheControl).toBe(AVATAR_CACHE_CONTROL);
@@ -53,6 +56,10 @@ describe("avatar processing", () => {
     expect(metadata.format).toBe("webp");
     expect(metadata.width).toBeLessThanOrEqual(512);
     expect(metadata.height).toBeLessThanOrEqual(512);
+    const published = [...storage.objects().keys()];
+    expect(published).toHaveLength(1);
+    const hash = published[0]?.split("/")[2]?.replace(/\.webp$/, "") ?? "";
+    expect(published[0]).toBe(avatarPublishedKey("user-1", hash));
     expect(saved).toEqual([
       {
         userId: "user-1",
@@ -68,8 +75,9 @@ describe("avatar processing", () => {
       endpoint: "http://localhost:9000",
       bucket: "sprachpilot-dev",
     });
+    const sourceKey = avatarSourceKey("user-1", "source");
     await storage.put({
-      key: "private/avatars/user-1/source",
+      key: sourceKey,
       body: Buffer.from("not a photo"),
       contentType: "application/octet-stream",
       cacheControl: "private, no-store",
@@ -81,8 +89,83 @@ describe("avatar processing", () => {
         async saveAvatarUrl() {
           throw new Error("should not publish");
         },
-      })({ data: { userId: "user-1", sourceKey: "private/avatars/user-1/source" } }),
+      })({ data: { userId: "user-1", sourceKey } }),
     ).rejects.toThrow("invalid avatar image");
-    expect(storage.objects().has("private/avatars/user-1/source")).toBe(false);
+    expect(storage.objects().has(sourceKey)).toBe(false);
+  });
+
+  it("deletes both objects when the profile refuses the photo", async () => {
+    const storage = createMemoryAvatarStorage({
+      endpoint: "http://localhost:9000",
+      bucket: "sprachpilot-dev",
+    });
+    const sourceKey = avatarSourceKey("user-1", "source");
+    const jpeg = await sharp({
+      create: { width: 4, height: 4, channels: 3, background: { r: 1, g: 2, b: 3 } },
+    })
+      .jpeg()
+      .toBuffer();
+    await storage.put({
+      key: sourceKey,
+      body: jpeg,
+      contentType: "image/jpeg",
+      cacheControl: "private, no-store",
+    });
+
+    await createAvatarProcessor({
+      storage,
+      async saveAvatarUrl() {
+        return false;
+      },
+    })({ data: { userId: "user-1", sourceKey } });
+
+    expect(storage.objects().size).toBe(0);
+  });
+
+  it("leaves both objects when saving the photo throws", async () => {
+    const storage = createMemoryAvatarStorage({
+      endpoint: "http://localhost:9000",
+      bucket: "sprachpilot-dev",
+    });
+    const sourceKey = avatarSourceKey("user-1", "source");
+    const jpeg = await sharp({
+      create: { width: 4, height: 4, channels: 3, background: { r: 1, g: 2, b: 3 } },
+    })
+      .jpeg()
+      .toBuffer();
+    await storage.put({
+      key: sourceKey,
+      body: jpeg,
+      contentType: "image/jpeg",
+      cacheControl: "private, no-store",
+    });
+
+    await expect(
+      createAvatarProcessor({
+        storage,
+        async saveAvatarUrl() {
+          throw new Error("database unavailable");
+        },
+      })({ data: { userId: "user-1", sourceKey } }),
+    ).rejects.toThrow("database unavailable");
+
+    expect(storage.objects().has(sourceKey)).toBe(true);
+    expect([...storage.objects().keys()].some((key) => key.endsWith(".webp"))).toBe(true);
+  });
+
+  it("fails without a retry when the original is missing", async () => {
+    const storage = createMemoryAvatarStorage({
+      endpoint: "http://localhost:9000",
+      bucket: "sprachpilot-dev",
+    });
+
+    await expect(
+      createAvatarProcessor({
+        storage,
+        async saveAvatarUrl() {
+          return true;
+        },
+      })({ data: { userId: "user-1", sourceKey: avatarSourceKey("user-1", "missing") } }),
+    ).rejects.toBeInstanceOf(UnrecoverableError);
   });
 });

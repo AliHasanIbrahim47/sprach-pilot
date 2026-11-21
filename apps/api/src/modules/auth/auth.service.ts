@@ -1,5 +1,3 @@
-import { randomUUID } from "node:crypto";
-
 import {
   type AccountResponse,
   AUTH_COPY,
@@ -38,6 +36,7 @@ import type { AuthMetrics } from "./metrics.js";
 import type { PasswordHasher } from "./password-hasher.js";
 import { isCommonPassword } from "./password-policy.js";
 import type { SessionRepository } from "./session.repository.js";
+import { createSessionAdmission } from "./session-admission.js";
 import { sessionRole } from "./session-role.js";
 import type { TokenService } from "./token.service.js";
 
@@ -72,7 +71,7 @@ export interface AuthServiceDependencies {
   ipHashSecret: string;
   registrationEnabled: boolean;
   logger: AuthLogger;
-  /** Called when a login cancels a scheduled account deletion. */
+  /** Called when session admission clears a grace-window deletion. */
   onDeletionCancelled?: () => void;
 }
 
@@ -94,8 +93,15 @@ export interface AuthenticatedResult extends LoginSuccessResponse {
   credentials: IssuedCredentials;
 }
 
+export interface RegisteredAccount extends RegisterAcceptedResponse {
+  credentials: IssuedCredentials;
+}
+
 export interface AuthService {
-  register(input: RegisterBody, context: AuthRequestContext): Promise<RegisterAcceptedResponse>;
+  register(
+    input: RegisterBody,
+    context: AuthRequestContext,
+  ): Promise<RegisterAcceptedResponse | RegisteredAccount>;
   login(input: LoginBody, context: AuthRequestContext): Promise<AuthenticatedResult>;
   refresh(refreshToken: string): Promise<IssuedCredentials>;
   logout(input: { refreshToken?: string; accessToken?: string }): Promise<void>;
@@ -158,24 +164,14 @@ export function createAuthService(dependencies: AuthServiceDependencies): AuthSe
     onDeletionCancelled,
   } = dependencies;
 
-  async function issueCredentials(
-    user: { id: string; role: string },
-    context: AuthRequestContext,
-  ): Promise<IssuedCredentials> {
-    const now = clock();
-    const refreshToken = tokens.createRefreshToken();
-    const familyId = randomUUID();
-    const session = await sessions.create({
-      userId: user.id,
-      familyId,
-      refreshTokenHash: tokens.hashRefreshToken(refreshToken),
-      expiresAt: refreshExpiry(now),
-      userAgent: deviceUserAgent(context.userAgent),
-      ipHash: hashIp(context.ip, ipHashSecret),
-      now,
-    });
-    return credentialsFor(user, session.familyId, refreshToken, now);
-  }
+  const admission = createSessionAdmission({
+    users,
+    sessions,
+    tokens,
+    clock,
+    ipHashSecret,
+    onDeletionCancelled,
+  });
 
   function refreshExpiry(now: Date): Date {
     return new Date(now.getTime() + tokens.refreshTtlSeconds * 1000);
@@ -258,7 +254,11 @@ export function createAuthService(dependencies: AuthServiceDependencies): AuthSe
       await enqueueVerification({ id: created.id, email, uiLocale: locale }, locale);
       metrics.recordRegister("created");
       logger.info("registration created");
-      return acceptedResponse();
+      const user = await users.findById(created.id);
+      if (!user) return acceptedResponse();
+      const opened = await admission.open(user, context);
+      if (opened.status === "refused") return acceptedResponse();
+      return { ...acceptedResponse(), credentials: opened.credentials };
     },
 
     /**
@@ -277,13 +277,8 @@ export function createAuthService(dependencies: AuthServiceDependencies): AuthSe
         });
       }
 
-      const now = clock();
       const user = await users.findByEmail(email);
-      const purgeDue =
-        user?.purgeAfter !== null &&
-        user?.purgeAfter !== undefined &&
-        user.purgeAfter.getTime() <= now.getTime();
-      const activeUser = user && user.deletedAt === null && !purgeDue ? user : null;
+      const activeUser = admission.classify(user) === "blocked" ? null : user;
       const passwordHash = activeUser?.passwordHash ?? (await hasher.dummyHash());
       const passwordOk = await hasher.verify(passwordHash, input.password);
 
@@ -293,18 +288,15 @@ export function createAuthService(dependencies: AuthServiceDependencies): AuthSe
         throw new UnauthorizedError(AUTH_COPY.invalidCredentials);
       }
 
-      if (activeUser.deletionRequestedAt) {
-        const cancelled = await users.clearDeletion(activeUser.id, clock());
-        if (!cancelled) {
-          await throttle.recordFailure(subjectKey);
-          metrics.recordLogin("failure");
-          throw new UnauthorizedError(AUTH_COPY.invalidCredentials);
-        }
-        onDeletionCancelled?.();
+      const opened = await admission.open(activeUser, context);
+      if (opened.status === "refused") {
+        await throttle.recordFailure(subjectKey);
+        metrics.recordLogin("failure");
+        throw new UnauthorizedError(AUTH_COPY.invalidCredentials);
       }
       await throttle.reset(subjectKey);
       metrics.recordLogin("success");
-      const credentials = await issueCredentials(activeUser, context);
+      const credentials = opened.credentials;
       return {
         status: "authenticated",
         needsOnboarding: isOnboardingPending(activeUser),
@@ -349,11 +341,7 @@ export function createAuthService(dependencies: AuthServiceDependencies): AuthSe
       }
 
       const user = await users.findById(outcome.session.userId);
-      const refreshPurgeDue =
-        user?.purgeAfter !== null &&
-        user?.purgeAfter !== undefined &&
-        user.purgeAfter.getTime() <= now.getTime();
-      if (!user || user.deletedAt !== null || refreshPurgeDue || user.deletionRequestedAt) {
+      if (!user || admission.continue(user) === "refused") {
         await sessions.revokeFamily({
           familyId: outcome.session.familyId,
           reason: "revoked",
@@ -589,11 +577,4 @@ function buildAppLink(origin: string, locale: UiLocale, path: string, token: str
   const url = new URL(`${origin.replace(/\/$/, "")}/${locale}${path}`);
   url.searchParams.set("token", token);
   return url.toString();
-}
-
-function deviceUserAgent(value: string | undefined): string | null {
-  if (!value) return null;
-  const trimmed = value.trim().replaceAll("\u0000", "");
-  if (trimmed.length === 0) return null;
-  return trimmed.slice(0, 256);
 }

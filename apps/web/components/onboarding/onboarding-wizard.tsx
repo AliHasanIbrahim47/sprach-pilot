@@ -110,7 +110,8 @@ export function OnboardingWizard({
   });
 
   /**
-   * Saves one step and shows the next one. A new app language also switches the page locale.
+   * Saves one step and shows the resume pointer from the response.
+   * A new app language also switches the page locale.
    */
   async function persist(body: OnboardingStepBody): Promise<boolean> {
     setError("");
@@ -121,9 +122,7 @@ export function OnboardingWizard({
         setError(t("saveError"));
         return false;
       }
-      const index = ONBOARDING_STEPS.indexOf(body.step);
-      const next = ONBOARDING_STEPS[Math.min(index + 1, ONBOARDING_STEPS.length - 1)] ?? body.step;
-      setView(next);
+      setView(result.data.step);
       if (body.step === "languages" && body.uiLocale !== locale) {
         router.replace("/onboarding", { locale: body.uiLocale });
       }
@@ -462,6 +461,7 @@ export function OnboardingWizard({
           <p className="text-muted-foreground text-sm">{t("cityPrivacy")}</p>
           <CityPicker
             selectedId={selectedCity?.id ?? null}
+            selectedLabel={selectedCity?.name ?? null}
             onSearch={onSearchCities}
             onSelect={setSelectedCity}
           />

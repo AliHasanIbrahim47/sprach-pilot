@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Link, useRouter } from "@/i18n/navigation";
 import { loginAccount } from "@/lib/auth-actions";
 import { type AuthFieldErrors, zodIssuesToFieldErrors } from "@/lib/auth-field-errors";
+import { postSignInPath } from "@/lib/return-path";
 
 interface LoginFormProps {
   nextPath?: string | null;
@@ -55,7 +56,12 @@ export function LoginForm({ nextPath = null }: LoginFormProps): React.JSX.Elemen
         setSummary(summaryFor(result, t));
         return;
       }
-      router.replace(result.needsOnboarding ? "/onboarding" : (nextPath ?? "/dashboard"));
+      router.replace(
+        postSignInPath({
+          needsOnboarding: result.needsOnboarding === true,
+          returnTo: nextPath,
+        }),
+      );
     } finally {
       setIsSubmitting(false);
     }

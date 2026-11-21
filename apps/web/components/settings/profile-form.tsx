@@ -48,6 +48,7 @@ export function ProfileForm({ profile, onSave }: ProfileFormProps): React.JSX.El
   const [cefrLevel, setCefrLevel] = useState<PlacementLevel | null>(profile.cefrLevel);
   const [goals, setGoals] = useState<LearningGoal[]>(profile.goals);
   const [cityId, setCityId] = useState<string | null>(profile.city?.id ?? null);
+  const [cityName, setCityName] = useState<string | null>(profile.city?.name ?? null);
   const [timezone, setTimezone] = useState(profile.timezone);
   const [isSaving, setIsSaving] = useState(false);
   const [summary, setSummary] = useState("");
@@ -58,6 +59,7 @@ export function ProfileForm({ profile, onSave }: ProfileFormProps): React.JSX.El
     cefrLevel: profile.cefrLevel,
     goals: profile.goals,
     cityId: profile.city?.id ?? null,
+    cityName: profile.city?.name ?? null,
     timezone: profile.timezone,
   });
 
@@ -95,6 +97,7 @@ export function ProfileForm({ profile, onSave }: ProfileFormProps): React.JSX.El
         cefrLevel,
         goals,
         cityId,
+        cityName,
         timezone,
       });
     }
@@ -108,6 +111,7 @@ export function ProfileForm({ profile, onSave }: ProfileFormProps): React.JSX.El
     setCefrLevel(saved.cefrLevel);
     setGoals(saved.goals);
     setCityId(saved.cityId);
+    setCityName(saved.cityName);
     setTimezone(saved.timezone);
     setSummary("");
   }
@@ -202,14 +206,23 @@ export function ProfileForm({ profile, onSave }: ProfileFormProps): React.JSX.El
       />
 
       <CityPicker
+        key={cityId ?? "none"}
         selectedId={cityId}
+        selectedLabel={cityName}
         onSearch={searchCities}
-        onSelect={(city) => setCityId(city.id)}
+        onSelect={(city) => {
+          setCityId(city.id);
+          setCityName(city.name);
+        }}
       />
-      {profile.city && cityId === profile.city.id ? (
-        <p className="text-muted-foreground text-sm">{profile.city.name}</p>
-      ) : null}
-      <Button type="button" variant="outline" onClick={() => setCityId(null)}>
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => {
+          setCityId(null);
+          setCityName(null);
+        }}
+      >
         {t("clearCity")}
       </Button>
 

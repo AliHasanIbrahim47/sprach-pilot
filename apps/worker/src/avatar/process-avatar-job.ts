@@ -1,6 +1,11 @@
 import { createHash } from "node:crypto";
 
-import { AVATAR_CACHE_CONTROL, avatarJobSchema, publicObjectUrl } from "@sprachpilot/shared";
+import {
+  AVATAR_CACHE_CONTROL,
+  avatarJobSchema,
+  avatarPublishedKey,
+  publicObjectUrl,
+} from "@sprachpilot/shared";
 import { UnrecoverableError } from "bullmq";
 
 import { AvatarImageError, renderAvatar } from "./render-avatar.js";
@@ -25,7 +30,8 @@ export interface AvatarStorage {
 
 export interface AvatarProcessorDependencies {
   storage: AvatarStorage;
-  saveAvatarUrl(userId: string, avatarUrl: string): Promise<void>;
+  /** False when the profile is missing or already deleted. */
+  saveAvatarUrl(userId: string, avatarUrl: string): Promise<boolean>;
 }
 
 /**
@@ -53,15 +59,21 @@ export function createAvatarProcessor(dependencies: AvatarProcessorDependencies)
     }
 
     const hash = createHash("sha256").update(rendered.body).digest("hex").slice(0, 32);
-    const targetKey = `avatars/${parsed.data.userId}/${hash}.webp`;
+    const targetKey = avatarPublishedKey(parsed.data.userId, hash);
     await storage.put({
       key: targetKey,
       body: rendered.body,
       contentType: rendered.contentType,
       cacheControl: AVATAR_CACHE_CONTROL,
     });
+
+    const accepted = await saveAvatarUrl(parsed.data.userId, storage.publicUrl(targetKey));
+    if (!accepted) {
+      await storage.delete(targetKey);
+      await storage.delete(parsed.data.sourceKey);
+      return;
+    }
     await storage.delete(parsed.data.sourceKey);
-    await saveAvatarUrl(parsed.data.userId, storage.publicUrl(targetKey));
   };
 }
 

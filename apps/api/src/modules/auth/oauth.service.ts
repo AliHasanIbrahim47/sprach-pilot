@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID } from "node:crypto";
+import { randomBytes } from "node:crypto";
 
 import {
   AUTH_COPY,
@@ -9,6 +9,7 @@ import {
   type OAuthCallbackResponse,
   type OAuthGoogleCallbackBody,
   type OAuthGoogleLinkBody,
+  safeReturnPath,
   type UiLocale,
   UnauthorizedError,
   ValidationError,
@@ -31,6 +32,7 @@ import type { AuthMetrics } from "./metrics.js";
 import type { OAuthStateStore } from "./oauth-state.store.js";
 import type { PasswordHasher } from "./password-hasher.js";
 import type { SessionRepository } from "./session.repository.js";
+import { createSessionAdmission } from "./session-admission.js";
 import { sessionRole } from "./session-role.js";
 import type { TokenService } from "./token.service.js";
 
@@ -51,6 +53,7 @@ export interface OAuthServiceDependencies {
   clock: () => Date;
   ipHashSecret: string;
   logger: AuthLogger;
+  /** Called when session admission clears a grace-window deletion. */
   onDeletionCancelled?: () => void;
 }
 
@@ -100,30 +103,14 @@ export function createOAuthService(dependencies: OAuthServiceDependencies): OAut
     onDeletionCancelled,
   } = dependencies;
 
-  function purgeIsDue(user: { purgeAfter: Date | null }, now: Date): boolean {
-    return user.purgeAfter !== null && user.purgeAfter.getTime() <= now.getTime();
-  }
-
-  async function cancelDeletionDuringGrace(user: {
-    id: string;
-    deletedAt: Date | null;
-    purgeAfter: Date | null;
-    deletionRequestedAt: Date | null;
-  }): Promise<void> {
-    const now = clock();
-    if (user.deletedAt !== null || purgeIsDue(user, now)) {
-      metrics.recordLogin("failure");
-      throw new UnauthorizedError(AUTH_COPY.oauthFailed);
-    }
-    if (user.deletionRequestedAt) {
-      const cancelled = await users.clearDeletion(user.id, clock());
-      if (!cancelled) {
-        metrics.recordLogin("failure");
-        throw new UnauthorizedError(AUTH_COPY.oauthFailed);
-      }
-      onDeletionCancelled?.();
-    }
-  }
+  const admission = createSessionAdmission({
+    users,
+    sessions,
+    tokens,
+    clock,
+    ipHashSecret,
+    onDeletionCancelled,
+  });
 
   function requireGoogle(): { google: GoogleOAuthProvider; redirectUri: string } {
     const { google, redirectUri } = dependencies;
@@ -131,34 +118,6 @@ export function createOAuthService(dependencies: OAuthServiceDependencies): OAut
       throw new ForbiddenError(AUTH_COPY.oauthDisabled);
     }
     return { google, redirectUri };
-  }
-
-  async function issueCredentials(
-    user: { id: string; role: string },
-    context: AuthRequestContext,
-  ): Promise<IssuedCredentials> {
-    const now = clock();
-    const refreshToken = tokens.createRefreshToken();
-    const familyId = randomUUID();
-    await sessions.create({
-      userId: user.id,
-      familyId,
-      refreshTokenHash: tokens.hashRefreshToken(refreshToken),
-      expiresAt: new Date(now.getTime() + tokens.refreshTtlSeconds * 1000),
-      userAgent: deviceUserAgent(context.userAgent),
-      ipHash: hashIp(context.ip, ipHashSecret),
-      now,
-    });
-    const accessToken = await tokens.signAccessToken(
-      { sub: user.id, role: user.role, sid: familyId },
-      now,
-    );
-    return {
-      accessToken,
-      refreshToken,
-      accessMaxAgeSeconds: tokens.accessTtlSeconds,
-      refreshMaxAgeSeconds: tokens.refreshTtlSeconds,
-    };
   }
 
   async function authenticatedResult(
@@ -169,11 +128,18 @@ export function createOAuthService(dependencies: OAuthServiceDependencies): OAut
       emailVerifiedAt: Date | null;
       onboardingCompletedAt: Date | null;
       onboardingSkippedAt: Date | null;
+      deletedAt: Date | null;
+      deletionRequestedAt: Date | null;
+      purgeAfter: Date | null;
     },
     context: AuthRequestContext,
     meta: { returnTo: string | null; locale: string },
   ): Promise<OAuthAuthenticatedResult> {
-    const credentials = await issueCredentials(user, context);
+    const opened = await admission.open(user, context);
+    if (opened.status === "refused") {
+      metrics.recordLogin("failure");
+      throw new UnauthorizedError(AUTH_COPY.oauthFailed);
+    }
     metrics.recordLogin("success");
     return {
       status: "authenticated",
@@ -185,7 +151,7 @@ export function createOAuthService(dependencies: OAuthServiceDependencies): OAut
         emailVerified: user.emailVerifiedAt !== null,
         role: sessionRole(user.role),
       },
-      credentials,
+      credentials: opened.credentials,
       returnTo: meta.returnTo,
     };
   }
@@ -209,7 +175,7 @@ export function createOAuthService(dependencies: OAuthServiceDependencies): OAut
         {
           codeVerifier,
           nonce,
-          returnTo: sanitizeReturnTo(input.returnTo),
+          returnTo: safeReturnPath(input.returnTo),
           locale,
         },
         AUTHORIZE_TTL_SECONDS,
@@ -257,7 +223,6 @@ export function createOAuthService(dependencies: OAuthServiceDependencies): OAut
           metrics.recordLogin("failure");
           throw new UnauthorizedError(AUTH_COPY.oauthFailed);
         }
-        await cancelDeletionDuringGrace(user);
         return authenticatedResult(user, context, {
           returnTo: pending.returnTo,
           locale: pending.locale,
@@ -265,7 +230,7 @@ export function createOAuthService(dependencies: OAuthServiceDependencies): OAut
       }
 
       const existing = await users.findByEmail(identity.email);
-      if (existing && existing.deletedAt === null && !purgeIsDue(existing, clock())) {
+      if (existing && admission.classify(existing) !== "blocked") {
         if (!existing.passwordHash) {
           // Existing OAuth-only account without this Google subject — refuse to auto-claim.
           metrics.recordLogin("failure");
@@ -348,7 +313,7 @@ export function createOAuthService(dependencies: OAuthServiceDependencies): OAut
       }
 
       const user = await users.findById(pending.userId);
-      if (!user || user.deletedAt !== null || !user.passwordHash) {
+      if (!user || !user.passwordHash || admission.classify(user) === "blocked") {
         await oauthState.takeLink(input.linkToken);
         throw new UnauthorizedError(AUTH_COPY.invalidCredentials);
       }
@@ -359,7 +324,6 @@ export function createOAuthService(dependencies: OAuthServiceDependencies): OAut
       }
 
       await oauthState.takeLink(input.linkToken);
-      await cancelDeletionDuringGrace(user);
 
       const already = await accounts.findByProvider(GOOGLE_PROVIDER, pending.providerAccountId);
       if (already && already.userId !== user.id) {
@@ -412,19 +376,4 @@ export function createOAuthService(dependencies: OAuthServiceDependencies): OAut
 function resolveLocale(requested: string | undefined): UiLocale {
   if (requested && isUiLocale(requested)) return requested;
   return "en";
-}
-
-function sanitizeReturnTo(value: string | null | undefined): string | null {
-  if (!value || !value.startsWith("/") || value.startsWith("//") || value.startsWith("/\\")) {
-    return null;
-  }
-  if (value.includes("\\") || value.includes("://")) return null;
-  return value;
-}
-
-function deviceUserAgent(value: string | undefined): string | null {
-  if (!value) return null;
-  const trimmed = value.trim().replaceAll("\u0000", "");
-  if (trimmed.length === 0) return null;
-  return trimmed.slice(0, 256);
 }

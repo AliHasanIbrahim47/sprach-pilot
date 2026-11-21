@@ -1,8 +1,8 @@
+import { safeReturnPath } from "@sprachpilot/shared";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { GoogleContinueButton } from "@/components/auth/google-continue-button";
 import { LoginForm } from "@/components/auth/login-form";
-import { safeNextPath } from "@/lib/session-gate";
 
 interface LoginPageProps {
   params: Promise<{ locale: string }>;
@@ -19,7 +19,7 @@ export default async function LoginPage({
   const paramsSearch = await searchParams;
   const nextParam = paramsSearch.next;
   const oauthParam = paramsSearch.oauth;
-  const nextPath = safeNextPath(Array.isArray(nextParam) ? nextParam[0] : nextParam);
+  const nextPath = safeReturnPath(Array.isArray(nextParam) ? nextParam[0] : nextParam);
   const oauthError = Array.isArray(oauthParam) ? oauthParam[0] : oauthParam;
 
   return (

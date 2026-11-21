@@ -78,21 +78,3 @@ export function applySetCookies(current: string | null, setCookies: readonly str
   }
   return [...jar.entries()].map(([name, value]) => `${name}=${value}`).join("; ");
 }
-
-/** Relative in-app path safe to use as a post-login redirect. */
-export function safeNextPath(value: string | null | undefined): string | null {
-  if (!value || !value.startsWith("/") || value.startsWith("//") || value.startsWith("/\\")) {
-    return null;
-  }
-  if (value.includes("\\") || value.includes("://")) return null;
-
-  let decoded = value;
-  try {
-    decoded = decodeURIComponent(value);
-  } catch {
-    return null;
-  }
-  if (!decoded.startsWith("/") || decoded.startsWith("//") || decoded.includes("\\")) return null;
-  if (decoded.includes("://")) return null;
-  return value;
-}

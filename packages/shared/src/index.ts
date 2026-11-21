@@ -18,7 +18,13 @@ export function createHealthStatus(service: WorkspaceName): HealthStatus {
   };
 }
 
-export { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from "./auth/cookies.js";
+export type { ParsedSessionCookie, SessionCookieOptions } from "./auth/cookies.js";
+export {
+  ACCESS_TOKEN_COOKIE,
+  parseSessionCookie,
+  REFRESH_TOKEN_COOKIE,
+  serializeSessionCookie,
+} from "./auth/cookies.js";
 export type {
   AccountResponse,
   PasswordForgotBody,
@@ -75,6 +81,7 @@ export {
 } from "./auth/permissions.js";
 export type { RegisterAcceptedResponse, RegisterBody } from "./auth/register.js";
 export { registerAcceptedResponseSchema, registerBodySchema } from "./auth/register.js";
+export { safeReturnPath } from "./auth/return-path.js";
 export type { AuthSession, RefreshSuccessResponse, SessionListResponse } from "./auth/sessions.js";
 export {
   authSessionSchema,
@@ -122,6 +129,14 @@ export {
   avatarJobSchema,
   MAX_AVATAR_BYTES,
 } from "./jobs/avatar.js";
+export {
+  AVATAR_PRIVATE_PREFIX,
+  AVATAR_PUBLIC_PREFIX,
+  avatarKeyFromUrl,
+  avatarPrefixes,
+  avatarPublishedKey,
+  avatarSourceKey,
+} from "./jobs/avatar-layout.js";
 export type { EmailJob, EmailTemplate } from "./jobs/email.js";
 export {
   EMAIL_JOB_ATTEMPTS,
