@@ -106,11 +106,12 @@ function createHarness(overrides: Partial<AuthServiceDependencies> = {}) {
 
 describe("auth service", () => {
   it("creates an account with consent and a stored hash", async () => {
-    const { service, memory } = createHarness();
+    const { service, memory, sessions } = createHarness();
 
     const response = await service.register(validRegistration, { ip: IP });
 
-    expect(response).toEqual({ status: "accepted", message: AUTH_COPY.registerAccepted });
+    expect(response).toMatchObject({ status: "accepted", message: AUTH_COPY.registerAccepted });
+    expect("credentials" in response).toBe(true);
     const [user] = memory.records();
     expect(user?.email).toBe("learner@example.com");
     expect(user?.passwordHash).toBe("hashed:correct-horse-battery");
@@ -130,10 +131,11 @@ describe("auth service", () => {
       },
     ]);
     expect(user?.consents[0]?.ipHash).not.toBe(IP);
+    expect(sessions.records()).toHaveLength(1);
   });
 
   it("returns the same response for an existing email and queues a notice", async () => {
-    const { service, memory, jobs } = createHarness();
+    const { service, memory, jobs, sessions } = createHarness();
 
     const first = await service.register(validRegistration, { ip: IP });
     const second = await service.register(
@@ -141,8 +143,10 @@ describe("auth service", () => {
       { ip: IP },
     );
 
-    expect(second).toEqual(first);
+    expect(second).toEqual({ status: "accepted", message: AUTH_COPY.registerAccepted });
+    expect(first).toMatchObject(second);
     expect(memory.records()).toHaveLength(1);
+    expect(sessions.records()).toHaveLength(1);
     expect(memory.records()[0]?.displayName).toBe("Ada");
     expect(jobs.map((job) => job.template)).toEqual(["verify-email", "registration-notice"]);
     expect(jobs[1]?.to).toBe("learner@example.com");
@@ -284,10 +288,13 @@ describe("auth service", () => {
 
     expect(metrics.renderPrometheus()).toContain('auth_refresh_total{result="reuse"} 1');
     expect(metrics.renderPrometheus()).toContain("auth_token_reuse_detected_total 1");
-    expect(sessions.records().every((row) => row.revokedReason === "reuse" || row.revokedAt)).toBe(
-      true,
-    );
-    expect(sessions.records().every((row) => row.revokedAt !== null)).toBe(true);
+    expect(
+      sessions
+        .records()
+        .filter((row) => row.familyId === claims.sid)
+        .every((row) => row.revokedReason === "reuse"),
+    ).toBe(true);
+    expect(sessions.records().some((row) => row.revokedAt === null)).toBe(true);
   });
 
   it("lists active sessions and revokes one device without affecting the other", async () => {
@@ -305,7 +312,7 @@ describe("auth service", () => {
     const claimsA = await tokenService.verifyAccessToken(deviceA.credentials.accessToken);
     const claimsB = await tokenService.verifyAccessToken(deviceB.credentials.accessToken);
     const listed = await service.listSessions(claimsA.sub, claimsA.sid);
-    expect(listed.sessions).toHaveLength(2);
+    expect(listed.sessions).toHaveLength(3);
     expect(listed.sessions.find((session) => session.id === claimsA.sid)?.current).toBe(true);
     expect(listed.sessions.find((session) => session.id === claimsB.sid)?.current).toBe(false);
 

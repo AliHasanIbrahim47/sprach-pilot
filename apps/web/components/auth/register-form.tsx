@@ -9,12 +9,13 @@ import { PasswordField } from "@/components/auth/password-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { registerAccount } from "@/lib/auth-actions";
 import { type AuthFieldErrors, zodIssuesToFieldErrors } from "@/lib/auth-field-errors";
 
 export function RegisterForm(): React.JSX.Element {
   const t = useTranslations("Auth");
+  const router = useRouter();
   const [fieldErrors, setFieldErrors] = useState<AuthFieldErrors>({});
   const [summary, setSummary] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
@@ -47,6 +48,10 @@ export function RegisterForm(): React.JSX.Element {
       if (!result.ok) {
         setFieldErrors(result.fieldErrors ?? {});
         setSummary(summaryFor(result.code, t));
+        return;
+      }
+      if (result.needsOnboarding) {
+        router.replace("/onboarding");
         return;
       }
       setIsSuccess(true);

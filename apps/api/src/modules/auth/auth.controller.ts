@@ -60,6 +60,12 @@ export function createAuthController(
       const body = req.body as RegisterBody;
       const result = await service.register(body, requestContext(req, resolveIp));
       noStore(res);
+      if ("credentials" in result) {
+        const { credentials, ...accepted } = result;
+        setSessionCookies(res, credentials, cookieOptions);
+        res.status(202).json(accepted);
+        return;
+      }
       res.status(202).json(result);
     },
 

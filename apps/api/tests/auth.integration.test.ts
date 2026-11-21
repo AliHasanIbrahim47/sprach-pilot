@@ -79,6 +79,7 @@ describe("auth routes", () => {
       status: "accepted",
       message: AUTH_COPY.registerAccepted,
     });
+    expect(cookieValue(readSetCookies(response.headers), ACCESS_TOKEN_COOKIE)).toBeTruthy();
     const user = users.records()[0];
     expect(user?.email).toBe("learner@example.com");
     expect(user?.passwordHash).not.toBe(validBody.password);
@@ -103,6 +104,7 @@ describe("auth routes", () => {
 
     expect(second.status).toBe(first.status);
     expect(second.body).toEqual(first.body);
+    expect(cookieValue(readSetCookies(second.headers), ACCESS_TOKEN_COOKIE)).toBeUndefined();
     expect(users.records()).toHaveLength(1);
     expect(jobs.map((job) => job.template)).toEqual(["verify-email", "registration-notice"]);
     expect(jobs[1]?.to).toBe("learner@example.com");
@@ -304,7 +306,7 @@ describe("session cookies", () => {
       .get("/v1/auth/sessions")
       .set("Cookie", `${ACCESS_TOKEN_COOKIE}=${accessA}`);
     expect(listed.status).toBe(200);
-    expect(listed.body.sessions).toHaveLength(2);
+    expect(listed.body.sessions).toHaveLength(3);
 
     const revoked = await request(app)
       .delete(`/v1/auth/sessions/${sidB}`)

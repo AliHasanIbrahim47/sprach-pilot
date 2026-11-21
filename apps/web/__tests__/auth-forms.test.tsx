@@ -62,6 +62,7 @@ describe("auth copy", () => {
 describe("register form", () => {
   beforeEach(() => {
     registerAccount.mockReset();
+    routerReplace.mockReset();
   });
 
   it("labels every field and announces validation errors", async () => {
@@ -94,7 +95,22 @@ describe("register form", () => {
     expect(screen.getByLabelText("Password")).toHaveAttribute("type", "password");
   });
 
-  it("tells the learner to verify email after a valid registration", async () => {
+  it("opens onboarding after a new account is created", async () => {
+    registerAccount.mockResolvedValue({ ok: true, intent: "register", needsOnboarding: true });
+    const user = userEvent.setup();
+    renderForm(<RegisterForm />);
+
+    await user.type(screen.getByLabelText("Email"), "learner@example.com");
+    await user.type(screen.getByLabelText("Display name"), "Ada");
+    await user.type(screen.getByLabelText("Password"), "correct-horse-battery");
+    await user.click(screen.getByLabelText("I accept the Terms and Privacy Policy"));
+    await user.click(screen.getByRole("button", { name: "Create account" }));
+
+    expect(registerAccount).toHaveBeenCalledOnce();
+    expect(routerReplace).toHaveBeenCalledWith("/onboarding");
+  });
+
+  it("keeps an existing email on the form and asks them to verify", async () => {
     registerAccount.mockResolvedValue({ ok: true, intent: "register" });
     const user = userEvent.setup();
     renderForm(<RegisterForm />);
@@ -106,7 +122,7 @@ describe("register form", () => {
     await user.click(screen.getByRole("button", { name: "Create account" }));
 
     expect(await screen.findByText(AUTH_COPY.registerAccepted)).toBeInTheDocument();
-    expect(registerAccount).toHaveBeenCalledOnce();
+    expect(routerReplace).not.toHaveBeenCalled();
   });
 
   it("shows a common-password rejection from the API", async () => {
