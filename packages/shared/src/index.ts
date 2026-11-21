@@ -18,7 +18,13 @@ export function createHealthStatus(service: WorkspaceName): HealthStatus {
   };
 }
 
-export { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from "./auth/cookies.js";
+export type { ParsedSessionCookie, SessionCookieOptions } from "./auth/cookies.js";
+export {
+  ACCESS_TOKEN_COOKIE,
+  parseSessionCookie,
+  REFRESH_TOKEN_COOKIE,
+  serializeSessionCookie,
+} from "./auth/cookies.js";
 export type {
   AccountResponse,
   PasswordForgotBody,

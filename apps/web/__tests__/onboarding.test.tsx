@@ -82,6 +82,39 @@ describe("onboarding wizard", () => {
     expect(screen.getByText("Step 1 of 5: Languages")).toHaveAttribute("aria-live", "polite");
   });
 
+  it("returns to the resume pointer after saving an earlier step", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockResolvedValue({ ok: true, data: pending("city") });
+
+    renderWithMessages(
+      <OnboardingWizard
+        initial={pending("level")}
+        quizItems={[]}
+        onSave={onSave}
+        onScoreQuiz={vi.fn()}
+        onComplete={vi.fn()}
+        onSkip={vi.fn()}
+        onSearchCities={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Back" }));
+    expect(
+      screen.getByRole("heading", { name: "Which languages do you use?" }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "Where in Germany should we look?" }),
+    ).toBeInTheDocument();
+    expect(onSave).toHaveBeenCalledWith({
+      step: "languages",
+      uiLocale: "en",
+      nativeLanguages: ["en"],
+    });
+  });
+
   it("shows a listening transcript and lets the learner override the suggested level", async () => {
     const user = userEvent.setup();
     const onSave = vi.fn().mockResolvedValue({ ok: true, data: pending("goals") });

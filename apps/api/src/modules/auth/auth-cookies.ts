@@ -1,4 +1,8 @@
-import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from "@sprachpilot/shared";
+import {
+  ACCESS_TOKEN_COOKIE,
+  REFRESH_TOKEN_COOKIE,
+  serializeSessionCookie,
+} from "@sprachpilot/shared";
 import type { Request, Response } from "express";
 
 export interface AuthCookieOptions {
@@ -35,11 +39,16 @@ export function setSessionCookies(
 ): void {
   res.append(
     "Set-Cookie",
-    serializeCookie(ACCESS_TOKEN_COOKIE, cookies.accessToken, cookies.accessMaxAgeSeconds, options),
+    serializeSessionCookie(
+      ACCESS_TOKEN_COOKIE,
+      cookies.accessToken,
+      cookies.accessMaxAgeSeconds,
+      options,
+    ),
   );
   res.append(
     "Set-Cookie",
-    serializeCookie(
+    serializeSessionCookie(
       REFRESH_TOKEN_COOKIE,
       cookies.refreshToken,
       cookies.refreshMaxAgeSeconds,
@@ -49,26 +58,8 @@ export function setSessionCookies(
 }
 
 export function clearSessionCookies(res: Response, options: AuthCookieOptions): void {
-  res.append("Set-Cookie", serializeCookie(ACCESS_TOKEN_COOKIE, "", 0, options));
-  res.append("Set-Cookie", serializeCookie(REFRESH_TOKEN_COOKIE, "", 0, options));
-}
-
-function serializeCookie(
-  name: string,
-  value: string,
-  maxAgeSeconds: number,
-  options: AuthCookieOptions,
-): string {
-  const parts = [
-    `${name}=${value}`,
-    `Max-Age=${maxAgeSeconds}`,
-    "Path=/",
-    "HttpOnly",
-    "SameSite=Lax",
-  ];
-  if (options.secure) parts.push("Secure");
-  if (options.domain) parts.push(`Domain=${options.domain}`);
-  return parts.join("; ");
+  res.append("Set-Cookie", serializeSessionCookie(ACCESS_TOKEN_COOKIE, "", 0, options));
+  res.append("Set-Cookie", serializeSessionCookie(REFRESH_TOKEN_COOKIE, "", 0, options));
 }
 
 function decodeCookieValue(value: string): string {

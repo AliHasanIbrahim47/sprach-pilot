@@ -142,6 +142,18 @@ describe("onboarding", () => {
       nativeLanguages: ["en", "ar"],
     });
 
+    const edited = await request(app)
+      .patch("/v1/onboarding")
+      .set("Cookie", cookie)
+      .send({
+        step: "languages",
+        uiLocale: "de",
+        nativeLanguages: ["en"],
+      });
+    expect(edited.status).toBe(200);
+    expect(edited.body.step).toBe("level");
+    expect(edited.body.nativeLanguages).toEqual(["en"]);
+
     const level = await request(app).patch("/v1/onboarding").set("Cookie", cookie).send({
       step: "level",
       cefrLevel: "A1",

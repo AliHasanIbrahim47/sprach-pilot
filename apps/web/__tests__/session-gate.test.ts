@@ -1,3 +1,4 @@
+import { parseSessionCookie } from "@sprachpilot/shared";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -6,7 +7,6 @@ import {
   isProtectedAppPath,
   loginRedirectUrl,
 } from "@/lib/session-gate";
-import { parseSetCookie } from "@/lib/upstream-cookies";
 
 describe("session gate", () => {
   it("treats locale-prefixed app and dashboard paths as protected", () => {
@@ -63,15 +63,37 @@ describe("session gate", () => {
 
 describe("upstream auth cookies", () => {
   it("parses the API set-cookie attributes", () => {
-    const parsed = parseSetCookie(
-      "sp_access=abc.def.ghi; Max-Age=900; Path=/; HttpOnly; Secure; SameSite=Lax",
-    );
-    expect(parsed).toEqual({
+    expect(
+      parseSessionCookie(
+        "sp_access=abc.def.ghi; Max-Age=900; Path=/; HttpOnly; Secure; SameSite=Lax; Domain=sprachpilot.test",
+      ),
+    ).toEqual({
       name: "sp_access",
       value: "abc.def.ghi",
       maxAge: 900,
-      secure: true,
       path: "/",
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      domain: "sprachpilot.test",
+    });
+  });
+
+  it("reads an omitted SameSite as lax and an omitted Domain as absent", () => {
+    const parsed = parseSessionCookie("sp_access=abc; Max-Age=900; Path=/; HttpOnly");
+    expect(parsed?.sameSite).toBe("lax");
+    expect(parsed?.domain).toBeUndefined();
+  });
+
+  it("keeps Domain and Path on a cleared cookie", () => {
+    expect(
+      parseSessionCookie("sp_refresh=; Max-Age=0; Path=/; HttpOnly; Domain=sprachpilot.test"),
+    ).toMatchObject({
+      name: "sp_refresh",
+      value: "",
+      maxAge: 0,
+      path: "/",
+      domain: "sprachpilot.test",
     });
   });
 });
