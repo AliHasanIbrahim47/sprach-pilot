@@ -5,7 +5,6 @@ import {
   decideSessionGate,
   isProtectedAppPath,
   loginRedirectUrl,
-  safeNextPath,
 } from "@/lib/session-gate";
 import { parseSetCookie } from "@/lib/upstream-cookies";
 
@@ -59,13 +58,6 @@ describe("session gate", () => {
         "sp_refresh=rotated; Max-Age=1209600; Path=/; HttpOnly",
       ]),
     ).toBe("sp_access=new.token; theme=dark; sp_refresh=rotated");
-  });
-
-  it("rejects open redirects", () => {
-    expect(safeNextPath("/app/decks")).toBe("/app/decks");
-    expect(safeNextPath("//evil.example")).toBeNull();
-    expect(safeNextPath("https://evil.example")).toBeNull();
-    expect(safeNextPath("/%2F%2Fevil.example")).toBeNull();
   });
 });
 

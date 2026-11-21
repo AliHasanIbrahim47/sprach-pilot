@@ -5,7 +5,11 @@ import { Link } from "@/i18n/navigation";
 
 interface LinkGooglePageProps {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ token?: string | string[]; email?: string | string[] }>;
+  searchParams: Promise<{
+    token?: string | string[];
+    email?: string | string[];
+    returnTo?: string | string[];
+  }>;
 }
 
 export default async function LinkGooglePage({
@@ -18,8 +22,10 @@ export default async function LinkGooglePage({
   const query = await searchParams;
   const tokenParam = query.token;
   const emailParam = query.email;
+  const returnParam = query.returnTo;
   const linkToken = Array.isArray(tokenParam) ? tokenParam[0] : tokenParam;
   const email = Array.isArray(emailParam) ? emailParam[0] : emailParam;
+  const returnTo = Array.isArray(returnParam) ? returnParam[0] : returnParam;
 
   if (!linkToken || linkToken.length < 32) {
     return (
@@ -43,7 +49,7 @@ export default async function LinkGooglePage({
         <h1 className="font-display text-3xl tracking-tight">{t("linkGoogleTitle")}</h1>
         <p className="text-muted-foreground text-sm">{t("linkGoogleIntro")}</p>
       </div>
-      <LinkGoogleForm linkToken={linkToken} email={email ?? ""} />
+      <LinkGoogleForm linkToken={linkToken} email={email ?? ""} returnTo={returnTo ?? null} />
     </div>
   );
 }

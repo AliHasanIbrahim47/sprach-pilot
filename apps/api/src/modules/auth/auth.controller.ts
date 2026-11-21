@@ -199,6 +199,7 @@ export function createAuthController(
           linkToken: result.linkToken,
           email: result.email,
           locale: result.locale,
+          returnTo: result.returnTo,
         });
         return;
       }
@@ -207,6 +208,7 @@ export function createAuthController(
         status: result.status,
         needsOnboarding: result.needsOnboarding,
         locale: result.locale,
+        returnTo: result.returnTo,
         user: result.user,
       });
     },
@@ -220,6 +222,7 @@ export function createAuthController(
         status: result.status,
         needsOnboarding: result.needsOnboarding,
         locale: result.locale,
+        returnTo: result.returnTo,
         user: result.user,
       });
     },

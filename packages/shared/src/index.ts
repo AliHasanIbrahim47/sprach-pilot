@@ -75,6 +75,7 @@ export {
 } from "./auth/permissions.js";
 export type { RegisterAcceptedResponse, RegisterBody } from "./auth/register.js";
 export { registerAcceptedResponseSchema, registerBodySchema } from "./auth/register.js";
+export { safeReturnPath } from "./auth/return-path.js";
 export type { AuthSession, RefreshSuccessResponse, SessionListResponse } from "./auth/sessions.js";
 export {
   authSessionSchema,

@@ -2,8 +2,8 @@ import type { OAuthCallbackResponse } from "@sprachpilot/shared";
 import { NextResponse } from "next/server";
 
 import { ApiClientError, apiFetch } from "@/lib/api-client";
+import { postSignInPath } from "@/lib/return-path";
 import { serverConfig } from "@/lib/server-config";
-import { safeNextPath } from "@/lib/session-gate";
 
 export async function GET(request: Request): Promise<NextResponse> {
   const incoming = new URL(request.url);
@@ -38,10 +38,14 @@ export async function GET(request: Request): Promise<NextResponse> {
       const target = new URL(`/${locale}/link-google`, request.url);
       target.searchParams.set("token", result.linkToken);
       target.searchParams.set("email", result.email);
+      if (result.returnTo) target.searchParams.set("returnTo", result.returnTo);
       return NextResponse.redirect(target);
     }
 
-    const next = result.needsOnboarding ? "/onboarding" : (safeNextPath(null) ?? "/dashboard");
+    const next = postSignInPath({
+      needsOnboarding: result.needsOnboarding,
+      returnTo: result.returnTo,
+    });
     return NextResponse.redirect(new URL(`/${locale}${next}`, request.url));
   } catch (error) {
     const reason = oauthErrorReason(error);

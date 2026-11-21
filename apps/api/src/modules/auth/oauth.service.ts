@@ -9,6 +9,7 @@ import {
   type OAuthCallbackResponse,
   type OAuthGoogleCallbackBody,
   type OAuthGoogleLinkBody,
+  safeReturnPath,
   type UiLocale,
   UnauthorizedError,
   ValidationError,
@@ -174,7 +175,7 @@ export function createOAuthService(dependencies: OAuthServiceDependencies): OAut
         {
           codeVerifier,
           nonce,
-          returnTo: sanitizeReturnTo(input.returnTo),
+          returnTo: safeReturnPath(input.returnTo),
           locale,
         },
         AUTHORIZE_TTL_SECONDS,
@@ -375,12 +376,4 @@ export function createOAuthService(dependencies: OAuthServiceDependencies): OAut
 function resolveLocale(requested: string | undefined): UiLocale {
   if (requested && isUiLocale(requested)) return requested;
   return "en";
-}
-
-function sanitizeReturnTo(value: string | null | undefined): string | null {
-  if (!value || !value.startsWith("/") || value.startsWith("//") || value.startsWith("/\\")) {
-    return null;
-  }
-  if (value.includes("\\") || value.includes("://")) return null;
-  return value;
 }
